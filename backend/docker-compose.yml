@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bustracka-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bustracka_db
+      POSTGRES_USER: bustracka_user
+      POSTGRES_PASSWORD: bustracka_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - bustracka_pgdata:/var/lib/postgresql/data
+      - ./src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+
+volumes:
+  bustracka_pgdata:
