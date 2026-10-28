@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { confirmarRecuperacion, solicitarRecuperacion } from "../api/authService";
+import AuthLayout from "../components/AuthLayout";
+import Alerta from "../components/Alerta";
+import Campo from "../components/Campo";
 
 /**
  * Vista de recuperacion de contrasena (RF3), con dos pasos en un solo
@@ -13,17 +16,22 @@ export default function RecoverPassword() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
 
-  return (
-    <div className="d-flex justify-content-center align-items-center min-vh-100 bg-light">
-      <div className="card shadow-sm" style={{ width: "100%", maxWidth: 420 }}>
-        <div className="card-body p-4">
-          {token ? <FormularioNuevaContrasena token={token} /> : <FormularioSolicitarEnlace />}
-          <p className="text-center mt-3 mb-0 small">
-            <Link to="/login">Volver a iniciar sesion</Link>
-          </p>
-        </div>
-      </div>
-    </div>
+  const pie = (
+    <Link to="/login" className="bt-link">
+      <i className="bi bi-arrow-left me-1" aria-hidden="true"></i>Volver a iniciar sesión
+    </Link>
+  );
+
+  return token ? (
+    <AuthLayout anden="03" eyebrow="Nueva contraseña" titulo="Define tu nueva contraseña"
+                subtitulo="Elige una contraseña de al menos 8 caracteres." pie={pie}>
+      <FormularioNuevaContrasena token={token} />
+    </AuthLayout>
+  ) : (
+    <AuthLayout anden="03" eyebrow="Recuperar contraseña" titulo="¿Olvidaste tu contraseña?"
+                subtitulo="Escribe tu correo y te enviaremos un enlace para crear una nueva." pie={pie}>
+      <FormularioSolicitarEnlace />
+    </AuthLayout>
   );
 }
 
@@ -42,9 +50,8 @@ function FormularioSolicitarEnlace() {
     try {
       const data = await solicitarRecuperacion(email);
       setMensaje(data.mensaje);
-      // El backend simula el envio de correo; en Sprint 1 exponemos el
-      // enlace en pantalla solo para poder probar el flujo de punta a
-      // punta sin un servidor SMTP real.
+      // El backend simula el envio de correo; exponemos el enlace en pantalla
+      // solo para poder probar el flujo de punta a punta sin servidor SMTP.
       setEnlaceDemo(data.enlaceDemo);
     } catch (err) {
       setError(err.message);
@@ -55,36 +62,21 @@ function FormularioSolicitarEnlace() {
 
   return (
     <>
-      <h1 className="h4 mb-1 text-center">Recuperar contrasena</h1>
-      <p className="text-muted text-center mb-4">
-        Te enviaremos un enlace para restablecerla
-      </p>
-
-      {error && <div className="alert alert-danger py-2">{error}</div>}
-      {mensaje && <div className="alert alert-success py-2">{mensaje}</div>}
+      <Alerta tipo="error">{error}</Alerta>
+      <Alerta tipo="exito">{mensaje}</Alerta>
       {enlaceDemo && (
-        <div className="alert alert-info py-2 small">
-          Enlace de prueba (simula el correo enviado):{" "}
-          <a href={enlaceDemo}>{enlaceDemo}</a>
-        </div>
+        <p className="small bt-muted">
+          Enlace de prueba (simula el correo enviado): <a className="bt-link" href={enlaceDemo}>{enlaceDemo}</a>
+        </p>
       )}
 
-      <form onSubmit={handleSubmit} noValidate>
-        <div className="mb-3">
-          <label htmlFor="email" className="form-label">
-            Correo electronico
-          </label>
-          <input
-            type="email"
-            className="form-control"
-            id="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
-        <button type="submit" className="btn btn-primary w-100" disabled={cargando}>
-          {cargando ? "Enviando..." : "Enviar enlace"}
+      <form onSubmit={handleSubmit} noValidate className="d-grid gap-3">
+        <Campo id="email" name="email" type="email" etiqueta="Correo electrónico" icono="bi-envelope"
+               placeholder="nombre@correo.com" autoComplete="email" value={email}
+               onChange={(e) => setEmail(e.target.value)} required />
+        <button type="submit" className="bt-btn bt-btn-primary w-100 mt-2" disabled={cargando}>
+          {cargando ? "Enviando…" : "Enviar enlace"}
+          <i className="bi bi-send" aria-hidden="true"></i>
         </button>
       </form>
     </>
@@ -121,43 +113,19 @@ function FormularioNuevaContrasena({ token }) {
 
   return (
     <>
-      <h1 className="h4 mb-1 text-center">Nueva contrasena</h1>
-      <p className="text-muted text-center mb-4">Define tu nueva contrasena</p>
+      <Alerta tipo="error">{error}</Alerta>
+      <Alerta tipo="exito">{mensaje}</Alerta>
 
-      {error && <div className="alert alert-danger py-2">{error}</div>}
-      {mensaje && <div className="alert alert-success py-2">{mensaje}</div>}
-
-      <form onSubmit={handleSubmit} noValidate>
-        <div className="mb-3">
-          <label htmlFor="nuevaContrasena" className="form-label">
-            Nueva contrasena
-          </label>
-          <input
-            type="password"
-            className="form-control"
-            id="nuevaContrasena"
-            value={nuevaContrasena}
-            onChange={(e) => setNuevaContrasena(e.target.value)}
-            minLength={8}
-            required
-          />
-        </div>
-        <div className="mb-3">
-          <label htmlFor="confirmar" className="form-label">
-            Confirmar contrasena
-          </label>
-          <input
-            type="password"
-            className="form-control"
-            id="confirmar"
-            value={confirmar}
-            onChange={(e) => setConfirmar(e.target.value)}
-            minLength={8}
-            required
-          />
-        </div>
-        <button type="submit" className="btn btn-primary w-100" disabled={cargando}>
-          {cargando ? "Guardando..." : "Actualizar contrasena"}
+      <form onSubmit={handleSubmit} noValidate className="d-grid gap-3">
+        <Campo id="nuevaContrasena" name="nuevaContrasena" type="password" etiqueta="Nueva contraseña" icono="bi-lock"
+               placeholder="Mínimo 8 caracteres" autoComplete="new-password" value={nuevaContrasena}
+               onChange={(e) => setNuevaContrasena(e.target.value)} required />
+        <Campo id="confirmar" name="confirmar" type="password" etiqueta="Confirmar contraseña" icono="bi-lock-fill"
+               placeholder="Repite tu contraseña" autoComplete="new-password" value={confirmar}
+               onChange={(e) => setConfirmar(e.target.value)} required />
+        <button type="submit" className="bt-btn bt-btn-primary w-100 mt-2" disabled={cargando}>
+          {cargando ? "Guardando…" : "Actualizar contraseña"}
+          <i className="bi bi-check2" aria-hidden="true"></i>
         </button>
       </form>
     </>

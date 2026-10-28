@@ -31,10 +31,10 @@ export default function MapaSeguimiento({ ubicacion }) {
       idViajeDibujado.current = ubicacion.idViaje;
       if (capaRuta.current) capaRuta.current.remove();
       const puntos = ubicacion.ruta.map((p) => [p.latitud, p.longitud]);
-      const linea = L.polyline(puntos, { color: "#0d6efd", weight: 4, opacity: 0.6 });
-      const origen = L.circleMarker(puntos[0], { radius: 8, color: "#198754", fillOpacity: 1 })
+      const linea = L.polyline(puntos, { color: "#14110f", weight: 4, opacity: 0.8, dashArray: "8 6" });
+      const origen = L.circleMarker(puntos[0], { radius: 8, color: "#1f7a4d", fillOpacity: 1 })
         .bindTooltip(`Origen: ${ubicacion.ciudadOrigen}`);
-      const destino = L.circleMarker(puntos[puntos.length - 1], { radius: 8, color: "#dc3545", fillOpacity: 1 })
+      const destino = L.circleMarker(puntos[puntos.length - 1], { radius: 8, color: "#14110f", fillColor: "#ffc400", fillOpacity: 1 })
         .bindTooltip(`Destino: ${ubicacion.ciudadDestino}`);
       capaRuta.current = L.layerGroup([linea, origen, destino]).addTo(mapa.current);
       mapa.current.fitBounds(linea.getBounds(), { padding: [30, 30] });

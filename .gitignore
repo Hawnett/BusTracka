@@ -1,22 +1,20 @@
-# macOS
-.DS_Store
 
 # Backend (Maven/IntelliJ)
-backend/target/
-*.iml
-.idea/
-
 # Frontend (Node/Vite)
-frontend/node_modules/
-frontend/dist/
-frontend/.env
-
 # General
+# macOS
+**/.DS_Store
+*.iml
 *.log
 .DS_Store
-**/.DS_Store
+.env
+.idea/
+.vite/
+backend/target/
+dist/
+frontend/.env
+frontend/dist/
+frontend/node_modules/
 node_modules/
 target/
-.idea/
-*.iml
-dist/
+vite.config.js.timestamp-*.mjs

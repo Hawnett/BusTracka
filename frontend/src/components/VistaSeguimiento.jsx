@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import MapaSeguimiento from "./MapaSeguimiento";
+import PanelSeguimiento from "./PanelSeguimiento";
+import Alerta from "./Alerta";
 
 const INTERVALO_MS = 3000;
 
@@ -33,19 +35,26 @@ export default function VistaSeguimiento({ cargarUbicacion }) {
     };
   }, [cargarUbicacion]);
 
+  const viaje = ubicacion && {
+    origen: ubicacion.ciudadOrigen,
+    destino: ubicacion.ciudadDestino,
+    estado: ubicacion.estado === "EN_RUTA" ? "En ruta" : "Aún no sale",
+    progreso: Math.round(ubicacion.progreso * 100),
+  };
+
   return (
     <>
-      {error && <div className="alert alert-danger">{error}</div>}
-      {ubicacion && (
-        <p className="mb-2">
-          <strong>{ubicacion.ciudadOrigen} → {ubicacion.ciudadDestino}</strong>{" "}
-          <span className={"badge " + (ubicacion.estado === "EN_RUTA" ? "bg-success" : "bg-secondary")}>
-            {ubicacion.estado === "EN_RUTA" ? "En ruta" : "Aun no sale"}
-          </span>{" "}
-          <span className="text-muted">Avance: {Math.round(ubicacion.progreso * 100)}%</span>
-        </p>
-      )}
-      <MapaSeguimiento ubicacion={ubicacion} />
+      <Alerta tipo="error">{error}</Alerta>
+      <div className="row g-3 g-lg-4">
+        <div className="col-12 col-lg-8 order-2 order-lg-1">
+          <div className="bt-map" aria-label="Mapa del recorrido">
+            <MapaSeguimiento ubicacion={ubicacion} />
+          </div>
+        </div>
+        <div className="col-12 col-lg-4 order-1 order-lg-2">
+          <PanelSeguimiento viaje={viaje || {}} />
+        </div>
+      </div>
     </>
   );
 }

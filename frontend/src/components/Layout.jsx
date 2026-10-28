@@ -1,28 +1,23 @@
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import Navbar from "./Navbar";
 
 /** Barra de navegacion + contenedor comun de todas las pantallas privadas. */
 export default function Layout() {
   const { usuario, cerrarSesion } = useAuth();
-  const claseLink = ({ isActive }) => "nav-link" + (isActive ? " active fw-semibold" : "");
 
   return (
-    <>
-      <nav className="navbar navbar-expand-md navbar-dark bg-primary">
-        <div className="container">
-          <Link className="navbar-brand" to="/">BusTracka</Link>
-          <div className="navbar-nav me-auto">
-            <NavLink className={claseLink} to="/" end>Buscar viajes</NavLink>
-            <NavLink className={claseLink} to="/seguimiento">Seguimiento</NavLink>
-            <NavLink className={claseLink} to="/compras">Mis compras</NavLink>
-          </div>
-          <span className="navbar-text me-3">{usuario?.nombreUsuario}</span>
-          <button className="btn btn-outline-light btn-sm" onClick={cerrarSesion}>Cerrar sesion</button>
-        </div>
-      </nav>
-      <main className="container py-4">
+    <div className="d-flex flex-column min-vh-100">
+      <Navbar nombreUsuario={usuario?.nombreUsuario} onCerrarSesion={cerrarSesion} />
+      <main className="bt-main flex-grow-1">
         <Outlet />
       </main>
-    </>
+      <footer className="bt-footer d-none d-md-block">
+        <div className="container d-flex justify-content-between gap-3 py-3">
+          <span>BusTracka · Terminal de viajes interprovinciales</span>
+          <span>Pagos en S/ (pasarela simulada)</span>
+        </div>
+      </footer>
+    </div>
   );
 }
