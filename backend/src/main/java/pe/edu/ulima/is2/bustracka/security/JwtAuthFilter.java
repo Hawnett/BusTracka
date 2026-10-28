@@ -18,13 +18,16 @@ import java.io.IOException;
  * en request attributes para que el controller los use (por ejemplo en
  * GET /api/auth/me).
  *
- * En Sprint 1 solo protegemos /api/auth/me; los demas endpoints de
- * autenticacion (login, register, recover) son publicos por definicion.
+ * Desde el Release 1 TODO lo que cuelga de /api/ exige sesion, salvo
+ * login/register/recover (/api/auth/*) y /api/publico/* (enlace de
+ * seguimiento compartido, que se valida con su propio token).
  */
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
-    private static final String RUTA_PROTEGIDA = "/api/auth/me";
+    private static final String RUTA_AUTH = "/api/auth/";
+    private static final String RUTA_ME = "/api/auth/me";
+    private static final String RUTA_PUBLICA = "/api/publico/";
 
     private final JwtUtil jwtUtil;
 
@@ -36,7 +39,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        if (!request.getRequestURI().equals(RUTA_PROTEGIDA)) {
+        if (esPublica(request)) {
             chain.doFilter(request, response);
             return;
         }
@@ -56,5 +59,17 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         } catch (TokenInvalidoException e) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
         }
+    }
+
+    private boolean esPublica(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        // Las peticiones preflight de CORS (OPTIONS) nunca llevan token.
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
+        if (uri.startsWith(RUTA_PUBLICA)) {
+            return true;
+        }
+        return uri.startsWith(RUTA_AUTH) && !uri.equals(RUTA_ME);
     }
 }

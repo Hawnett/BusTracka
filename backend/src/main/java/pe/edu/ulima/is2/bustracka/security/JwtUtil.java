@@ -44,6 +44,19 @@ public class JwtUtil {
         return generarToken(idUsuario, email, "RECUPERACION", 15 * 60 * 1000L);
     }
 
+    /** Token de enlace de seguimiento compartible: identifica un viaje, no a un usuario. */
+    public String generarTokenSeguimiento(Long idViaje, long vigenciaMs) {
+        Date ahora = new Date();
+        return Jwts.builder()
+                .setSubject("seguimiento")
+                .claim("idViaje", idViaje)
+                .claim("proposito", "SEGUIMIENTO")
+                .setIssuedAt(ahora)
+                .setExpiration(new Date(ahora.getTime() + vigenciaMs))
+                .signWith(clave, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
     private String generarToken(Long idUsuario, String email, String proposito, long vigenciaMs) {
         Date ahora = new Date();
         Date expiracion = new Date(ahora.getTime() + vigenciaMs);

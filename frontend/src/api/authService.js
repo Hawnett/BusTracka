@@ -28,7 +28,7 @@ api.interceptors.request.use((config) => {
  * backend siempre responde con { status, error, message } (ver
  * ApiErrorResponseDTO / GlobalExceptionHandler en el backend).
  */
-function extraerMensajeError(error) {
+export function extraerMensajeError(error) {
   if (error.response?.data?.message) {
     return error.response.data.message;
   }

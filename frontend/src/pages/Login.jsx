@@ -2,6 +2,9 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { login } from "../api/authService";
 import { useAuth } from "../context/AuthContext";
+import AuthLayout from "../components/AuthLayout";
+import Alerta from "../components/Alerta";
+import Campo from "../components/Campo";
 
 /**
  * Vista de inicio de sesion (RF2). Componente funcional con Hooks
@@ -34,69 +37,30 @@ export default function Login() {
   }
 
   return (
-    <div className="d-flex justify-content-center align-items-center min-vh-100 bg-light">
-      <div className="card shadow-sm" style={{ width: "100%", maxWidth: 420 }}>
-        <div className="card-body p-4">
-          <h1 className="h4 mb-1 text-center">BusTracka</h1>
-          <p className="text-muted text-center mb-4">Inicia sesion para continuar</p>
+    <AuthLayout
+      anden="07"
+      eyebrow="Iniciar sesión"
+      titulo="Bienvenido de vuelta"
+      subtitulo="Ingresa para buscar viajes, comprar pasajes y seguir tu bus."
+      pie={
+        <>
+          ¿Aún no tienes cuenta? <Link to="/registro" className="bt-link">Crear cuenta</Link>
+        </>
+      }
+    >
+      <Alerta tipo="error">{error}</Alerta>
 
-          {error && (
-            <div className="alert alert-danger py-2" role="alert">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} noValidate>
-            <div className="mb-3">
-              <label htmlFor="email" className="form-label">
-                Correo electronico
-              </label>
-              <input
-                type="email"
-                className="form-control"
-                id="email"
-                name="email"
-                placeholder="nombre@correo.com"
-                value={form.email}
-                onChange={handleChange}
-                required
-                autoComplete="email"
-              />
-            </div>
-
-            <div className="mb-2">
-              <label htmlFor="contrasena" className="form-label">
-                Contrasena
-              </label>
-              <input
-                type="password"
-                className="form-control"
-                id="contrasena"
-                name="contrasena"
-                placeholder="********"
-                value={form.contrasena}
-                onChange={handleChange}
-                required
-                autoComplete="current-password"
-              />
-            </div>
-
-            <div className="d-flex justify-content-end mb-3">
-              <Link to="/recuperar" className="small">
-                Olvidaste tu contrasena?
-              </Link>
-            </div>
-
-            <button type="submit" className="btn btn-primary w-100" disabled={cargando}>
-              {cargando ? "Ingresando..." : "Iniciar sesion"}
-            </button>
-          </form>
-
-          <p className="text-center mt-3 mb-0 small">
-            No tienes cuenta? <Link to="/registro">Registrate</Link>
-          </p>
-        </div>
-      </div>
-    </div>
+      <form onSubmit={handleSubmit} noValidate className="d-grid gap-3">
+        <Campo id="email" name="email" type="email" etiqueta="Correo electrónico" icono="bi-envelope"
+               placeholder="nombre@correo.com" autoComplete="email" value={form.email} onChange={handleChange} required />
+        <Campo id="contrasena" name="contrasena" type="password" etiqueta="Contraseña" icono="bi-lock"
+               placeholder="••••••••" autoComplete="current-password" value={form.contrasena} onChange={handleChange} required
+               accionEtiqueta={<Link to="/recuperar" className="bt-link small">¿La olvidaste?</Link>} />
+        <button type="submit" className="bt-btn bt-btn-primary w-100 mt-2" disabled={cargando}>
+          {cargando ? "Ingresando…" : "Ingresar"}
+          <i className="bi bi-arrow-right" aria-hidden="true"></i>
+        </button>
+      </form>
+    </AuthLayout>
   );
 }
