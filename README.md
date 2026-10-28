@@ -1,11 +1,62 @@
-# BusTracka - Sprint 1: Gestion de autenticacion y sesion
+# BusTracka - Release 1 (Sprints 1 a 4)
 
 Arquitectura desacoplada: backend API REST en Java (Maven) + frontend en React (Vite + Bootstrap).
+
+## Que incluye el Release 1
+
+| Sprint | Funcionalidad |
+|--------|---------------|
+| 1 | Registro, login, recuperacion de contrasena, sesion con JWT |
+| 2 | Terminales, rutas, horarios (viajes) y mapa de asientos |
+| 3 | Seguimiento del bus en un mapa (Leaflet/OpenStreetMap) y terminales |
+| 4 | Compra de pasajes, pago, comprobante con QR, correo y enlace de seguimiento |
+
+**Usuarios de prueba** (los crea `seed.sql`): `cliente@bustracka.pe` / `Cliente1234`
+y `admin@bustracka.pe` / `Admin1234`. Tarjeta de prueba: cualquiera de 13-19 digitos
+(las que terminan en `0000` simulan un pago rechazado).
+
+**Primera vez / si cambia el esquema** hay que recrear la base:
+`docker compose down -v && docker compose up -d` (desde `backend/`).
+
+### Que es real y que esta simulado
+
+| Pieza | Estado | Como se cambia por la real |
+|-------|--------|----------------------------|
+| Pasarela de pago | Simulada (`PasarelaPagoSimulada`) | Crear otra clase que implemente `PasarelaPago` |
+| Correo (n8n) | Simulado en el log; opcional webhook (`notificacion.webhook-url`) | Apuntar el webhook al flujo de n8n |
+| GPS del bus | Simulado (`SimuladorUbicacion`, ruta acelerada x60) | Otra implementacion de `ProveedorUbicacion` |
+| Mapa | Leaflet + OpenStreetMap (sin API key) | Cambiar `MapaSeguimiento.jsx` |
+| QR | Real (ZXing) | - |
+
+### Patrones en el Release 1
+- **Singleton:** `ConexionDB`, usado por todos los DAOs.
+- **Factory:** `DaoFactory` crea los 6 DAOs (usuario, terminal, ruta, viaje, asiento, venta).
+- **DTO:** toda entrada/salida HTTP; los modelos (`model/`) nunca salen por la API.
+- **DIP:** los services dependen de interfaces (`*Dao`, `PasarelaPago`, `NotificacionService`, `GeneradorQr`, `ProveedorUbicacion`).
+- **SRP / 3 capas:** Controller -> Service (interfaz + Impl) -> DAO (interfaz + Impl).
+- **Transaccion:** `VentaDaoImpl.registrar` guarda venta y asientos juntos; la restriccion
+  `UNIQUE (id_viaje, id_asiento)` evita vender dos veces el mismo asiento.
+
+### Endpoints nuevos (todos con `Authorization: Bearer <token>`, salvo `/api/publico`)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| GET | `/api/terminales` | Lista de terminales |
+| GET | `/api/viajes?origen=&destino=&fecha=` | Busca viajes futuros |
+| GET | `/api/viajes/en-curso` | Viajes que ya salieron |
+| GET | `/api/viajes/{id}` / `/{id}/asientos` | Detalle y asientos (libres/ocupados) |
+| GET | `/api/seguimiento/{idViaje}` | Posicion actual del bus + ruta |
+| GET | `/api/publico/seguimiento?token=` | Lo mismo, sin sesion (enlace del correo) |
+| POST | `/api/ventas` | Compra: valida asientos, cobra, guarda, genera QR y correo |
+| GET | `/api/ventas` / `/api/ventas/{id}` | Mis compras / comprobante |
 
 ## Backend (`/backend`)
 
 **Stack:** Spring Boot 3 (solo como servidor HTTP embebido y capa de controllers),
 JDBC "a mano" para persistencia, PostgreSQL, JJWT.
+
+**Paquetes** (base `pe.edu.ulima.is2.bustracka`, siguiendo la convencion de los
+repos de `ulima-software2`):
 
 ```
 config/      ConexionDB (Singleton), CorsConfig, FilterConfig
@@ -58,15 +109,22 @@ src/pages/RecoverPassword.jsx
 src/pages/Home.jsx           Pantalla minima post-login
 ```
 
+### Como correrlo
 
-## Levantar DB:
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
+
+## Correrlo
+
+# Backend: levantar Postgres
+cd backend
 docker compose up -d
 
-
-## Tener en cuenta previa a la ejecución en Java e uso del framework React
-
-Ejecutar React + JS mediante los comando clásico de npm install, npm run dev
-
-Ejecutar el backend utilizando IntelliJ Idea utilizando el archivo pom.xml
-
+# Frontend
+cd frontend
+npm install
+npm run dev
