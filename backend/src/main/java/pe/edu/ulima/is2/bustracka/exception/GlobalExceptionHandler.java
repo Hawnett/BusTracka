@@ -37,6 +37,21 @@ public class GlobalExceptionHandler {
         return construirRespuesta(HttpStatus.UNAUTHORIZED, ex.getMessage());
     }
 
+    @ExceptionHandler(AsientoNoDisponibleException.class)
+    public ResponseEntity<ApiErrorResponseDTO> handleAsientoNoDisponible(AsientoNoDisponibleException ex) {
+        return construirRespuesta(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(PagoRechazadoException.class)
+    public ResponseEntity<ApiErrorResponseDTO> handlePagoRechazado(PagoRechazadoException ex) {
+        return construirRespuesta(HttpStatus.PAYMENT_REQUIRED, ex.getMessage());
+    }
+
+    @ExceptionHandler(ReglaNegocioException.class)
+    public ResponseEntity<ApiErrorResponseDTO> handleReglaNegocio(ReglaNegocioException ex) {
+        return construirRespuesta(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
     @ExceptionHandler(PersistenciaException.class)
     public ResponseEntity<ApiErrorResponseDTO> handlePersistencia(PersistenciaException ex) {
         return construirRespuesta(HttpStatus.INTERNAL_SERVER_ERROR,

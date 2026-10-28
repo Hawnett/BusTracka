@@ -13,3 +13,10 @@ frontend/.env
 
 # General
 *.log
+.DS_Store
+**/.DS_Store
+node_modules/
+target/
+.idea/
+*.iml
+dist/
