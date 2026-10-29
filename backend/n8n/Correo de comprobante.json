@@ -1,0 +1,74 @@
+{
+  "name": "Correo de comprobante",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "comprobante",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        -400,
+        -16
+      ],
+      "id": "0f85d275-cf0d-4bc3-b558-c860cc8778b1",
+      "name": "Webhook",
+      "webhookId": "28798fe9-3e66-46c0-bfc4-5bf159c1a668"
+    },
+    {
+      "parameters": {
+        "fromEmail": "notificaciones@bustracka.pe",
+        "toEmail": "={{ $json.body.para }}",
+        "subject": "={{ $json.body.asunto }}",
+        "emailFormat": "text",
+        "text": "={{ $json.body.cuerpo }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        -176,
+        -16
+      ],
+      "id": "b3a10af0-9a79-4957-85b0-2be13ad05901",
+      "name": "Send an Email",
+      "webhookId": "328cfc64-0fea-4724-b1e6-c07f34f4ba3a",
+      "credentials": {
+        "smtp": {
+          "id": "2BMmJT1CiuVVCkj5",
+          "name": "Mailpit (pruebas)"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Send an Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "87fb41a9-d8db-4871-8fa9-568be0a65a8d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d5fa13eec6382becdf5432dfe05cbeeeda67118b7d49cdea560a1c7808cb1488"
+  },
+  "nodeGroups": [],
+  "id": "yaPhSo4h7jEUz83n",
+  "tags": []
+}
