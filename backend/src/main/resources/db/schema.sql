@@ -69,7 +69,8 @@ CREATE TABLE IF NOT EXISTS viaje (
     id_ruta        INTEGER        NOT NULL REFERENCES ruta (id_ruta),
     id_bus         INTEGER        NOT NULL REFERENCES bus (id_bus),
     fecha_salida   TIMESTAMP      NOT NULL,
-    precio         NUMERIC(8, 2)  NOT NULL
+    precio         NUMERIC(8, 2)  NOT NULL,
+    minutos_retraso  INTEGER      NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_viaje_fecha ON viaje (fecha_salida);
 
@@ -94,3 +95,15 @@ CREATE TABLE IF NOT EXISTS detalle_venta (
     precio            NUMERIC(8, 2) NOT NULL,
     UNIQUE (id_viaje, id_asiento)
 );
+
+CREATE TABLE IF NOT EXISTS notificacion (
+                                            id_notificacion  SERIAL PRIMARY KEY,
+                                            id_usuario       INTEGER     NOT NULL REFERENCES usuario (id_usuario),
+    id_viaje         INTEGER     NOT NULL REFERENCES viaje (id_viaje),
+    tipo             VARCHAR(20) NOT NULL CHECK (tipo IN ('SALIDA', 'RETRASO', 'LLEGADA')),
+    minutos_retraso  INTEGER     NOT NULL DEFAULT 0,
+    estado           VARCHAR(20) NOT NULL DEFAULT 'PENDIENTE' CHECK (estado IN ('PENDIENTE', 'ENVIADA')),
+    fecha_creacion   TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_envio      TIMESTAMP,
+    UNIQUE (id_usuario, id_viaje, tipo, minutos_retraso)
+    );
