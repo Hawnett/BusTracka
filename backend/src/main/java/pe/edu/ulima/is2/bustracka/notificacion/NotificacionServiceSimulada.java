@@ -21,7 +21,7 @@ public class NotificacionServiceSimulada implements NotificacionService {
     private static final Logger log = LoggerFactory.getLogger(NotificacionServiceSimulada.class);
 
     private final String webhookUrl;
-    private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
+    private final HttpClient http = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).connectTimeout(Duration.ofSeconds(3)).build();
 
     public NotificacionServiceSimulada(@Value("${notificacion.webhook-url:}") String webhookUrl) {
         this.webhookUrl = webhookUrl;

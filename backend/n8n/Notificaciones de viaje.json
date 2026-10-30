@@ -1,0 +1,176 @@
+{
+  "name": "Notificaciones de viaje",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -176,
+        -64
+      ],
+      "id": "d3f12c93-7c94-4cf7-9f8a-f0f9d4ef83e1",
+      "name": "Cada minuto"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO notificacion (id_usuario, id_viaje, tipo, minutos_retraso)\nSELECT DISTINCT ve.id_usuario, vi.id_viaje, 'SALIDA', 0\nFROM venta ve\nJOIN detalle_venta dv ON dv.id_venta = ve.id_venta\nJOIN viaje vi ON vi.id_viaje = dv.id_viaje\nWHERE ve.estado = 'PAGADA'\n  AND vi.fecha_salida + vi.minutos_retraso * INTERVAL '1 minute'\n      BETWEEN (now() AT TIME ZONE 'America/Lima')\n          AND (now() AT TIME ZONE 'America/Lima') + INTERVAL '30 minutes'\nON CONFLICT DO NOTHING;\n\nINSERT INTO notificacion (id_usuario, id_viaje, tipo, minutos_retraso)\nSELECT DISTINCT ve.id_usuario, vi.id_viaje, 'RETRASO', vi.minutos_retraso\nFROM venta ve\nJOIN detalle_venta dv ON dv.id_venta = ve.id_venta\nJOIN viaje vi ON vi.id_viaje = dv.id_viaje\nWHERE ve.estado = 'PAGADA'\n  AND vi.minutos_retraso > 0\n  AND vi.fecha_salida + vi.minutos_retraso * INTERVAL '1 minute' > (now() AT TIME ZONE 'America/Lima')\nON CONFLICT DO NOTHING;\n\nINSERT INTO notificacion (id_usuario, id_viaje, tipo, minutos_retraso)\nSELECT DISTINCT ve.id_usuario, vi.id_viaje, 'LLEGADA', 0\nFROM venta ve\nJOIN detalle_venta dv ON dv.id_venta = ve.id_venta\nJOIN viaje vi ON vi.id_viaje = dv.id_viaje\nJOIN ruta r ON r.id_ruta = vi.id_ruta\nWHERE ve.estado = 'PAGADA'\n  AND vi.fecha_salida + (vi.minutos_retraso + r.duracion_min) * INTERVAL '1 minute'\n      BETWEEN (now() AT TIME ZONE 'America/Lima') - INTERVAL '1 hour'\n          AND (now() AT TIME ZONE 'America/Lima')\nON CONFLICT DO NOTHING;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        48,
+        -64
+      ],
+      "id": "e9c5a3ca-acf0-4030-b1b2-b0377ed2510d",
+      "name": "Generar avisos",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "a4ZdK30MtWiFDdbM",
+          "name": "BusTracka DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT n.id_notificacion,\n       u.email,\n       CASE n.tipo\n           WHEN 'SALIDA'  THEN 'Tu bus a ' || d.ciudad || ' sale pronto'\n           WHEN 'RETRASO' THEN 'Tu viaje a ' || d.ciudad || ' tiene un retraso'\n           ELSE 'Tu bus llegó a ' || d.ciudad\n       END AS asunto,\n       CASE n.tipo\n           WHEN 'SALIDA'  THEN 'Hola ' || u.nombre_usuario || ', tu bus ' || b.placa || ' de ' || o.ciudad || ' a ' || d.ciudad\n                               || ' sale a las ' || to_char(vi.fecha_salida + vi.minutos_retraso * INTERVAL '1 minute', 'HH24:MI')\n                               || ' desde ' || o.nombre || '.'\n           WHEN 'RETRASO' THEN 'Hola ' || u.nombre_usuario || ', tu viaje de ' || o.ciudad || ' a ' || d.ciudad\n                               || ' tiene un retraso de ' || n.minutos_retraso || ' minutos. La nueva hora de salida es '\n                               || to_char(vi.fecha_salida + vi.minutos_retraso * INTERVAL '1 minute', 'DD/MM/YYYY HH24:MI') || '.'\n           ELSE 'Hola ' || u.nombre_usuario || ', tu bus ' || b.placa || ' llegó a ' || d.nombre || '. ¡Gracias por viajar con BusTracka!'\n       END AS mensaje\nFROM notificacion n\nJOIN usuario u ON u.id_usuario = n.id_usuario\nJOIN viaje vi ON vi.id_viaje = n.id_viaje\nJOIN ruta r ON r.id_ruta = vi.id_ruta\nJOIN terminal o ON o.id_terminal = r.id_terminal_origen\nJOIN terminal d ON d.id_terminal = r.id_terminal_destino\nJOIN bus b ON b.id_bus = vi.id_bus\nWHERE n.estado = 'PENDIENTE'\nORDER BY n.fecha_creacion;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        256,
+        -64
+      ],
+      "id": "31d218e3-a2b8-4a1c-9146-045f40c866c1",
+      "name": "Buscar pendientes",
+      "executeOnce": true,
+      "credentials": {
+        "postgres": {
+          "id": "a4ZdK30MtWiFDdbM",
+          "name": "BusTracka DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "notificaciones@bustracka.pe",
+        "toEmail": "={{ $json.email}}",
+        "subject": "={{ $json.asunto }}",
+        "emailFormat": "text",
+        "text": "={{ $json.mensaje }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        448,
+        -64
+      ],
+      "id": "12b4d128-61f8-4669-8712-cbc6b8a8ff50",
+      "name": "Mandar correo",
+      "webhookId": "b2af5d76-3f19-40c9-b2b2-de489995f801",
+      "credentials": {
+        "smtp": {
+          "id": "2BMmJT1CiuVVCkj5",
+          "name": "Mailpit (pruebas)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE notificacion\nSET estado = 'ENVIADA', fecha_envio = CURRENT_TIMESTAMP\nWHERE id_notificacion = {{ $('Buscar pendientes').item.json.id_notificacion }};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        672,
+        -64
+      ],
+      "id": "a69436d8-0dcf-439f-9d98-0b68c7cdc60f",
+      "name": "Marcar enviada",
+      "credentials": {
+        "postgres": {
+          "id": "a4ZdK30MtWiFDdbM",
+          "name": "BusTracka DB"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Cada minuto": {
+      "main": [
+        [
+          {
+            "node": "Generar avisos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar avisos": {
+      "main": [
+        [
+          {
+            "node": "Buscar pendientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar pendientes": {
+      "main": [
+        [
+          {
+            "node": "Mandar correo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mandar correo": {
+      "main": [
+        [
+          {
+            "node": "Marcar enviada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "9cdeea82-dd7b-4905-a63f-941bb120f9b3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d5fa13eec6382becdf5432dfe05cbeeeda67118b7d49cdea560a1c7808cb1488"
+  },
+  "nodeGroups": [],
+  "id": "Td5CDjuknCy3qTHi",
+  "tags": []
+}
