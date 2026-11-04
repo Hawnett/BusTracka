@@ -12,4 +12,9 @@ import java.util.List;
  */
 public interface ProveedorUbicacion {
     UbicacionBus obtenerUbicacion(Viaje viaje, List<PuntoRuta> ruta);
+
+    /** Cuantas veces mas rapido que el horario se mueve el bus (1 = tiempo real). */
+    default double aceleracion() {
+        return 1;
+    }
 }

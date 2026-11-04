@@ -17,9 +17,9 @@
 
     <groupId>pe.edu.ulima.is2</groupId>
     <artifactId>bustracka-backend</artifactId>
-    <version>1.0.0-SPRINT1</version>
+    <version>2.0.0-RELEASE2</version>
     <name>bustracka-backend</name>
-    <description>BusTracka - API REST (Sprint 1: Gestion de autenticacion y sesion)</description>
+    <description>BusTracka - API REST (Release 1 y 2)</description>
     <packaging>jar</packaging>
 
     <properties>
@@ -45,6 +45,12 @@
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
+        </dependency>
+
+        <!-- Pool de conexiones que administra ConexionDB (sin Spring Data) -->
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
         </dependency>
 
         <!-- Solo el modulo de criptografia de Spring Security (BCryptPasswordEncoder).
@@ -86,6 +92,13 @@
             <groupId>com.google.zxing</groupId>
             <artifactId>javase</artifactId>
             <version>3.5.3</version>
+        </dependency>
+
+        <!-- PDF del comprobante -->
+        <dependency>
+            <groupId>com.github.librepdf</groupId>
+            <artifactId>openpdf</artifactId>
+            <version>1.3.43</version>
         </dependency>
 
         <dependency>

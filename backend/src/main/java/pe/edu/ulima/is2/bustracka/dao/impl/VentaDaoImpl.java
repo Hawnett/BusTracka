@@ -20,11 +20,11 @@ import java.util.Optional;
 public class VentaDaoImpl implements VentaDao {
 
     private static final String SQL_INSERT_VENTA =
-            "INSERT INTO venta (id_usuario, total, estado, codigo_pago, codigo_comprobante, fecha) VALUES (?, ?, ?, ?, ?, ?)";
+            "INSERT INTO venta (id_usuario, total, estado, codigo_pago, codigo_comprobante, tarjeta_ultimos4, fecha) VALUES (?, ?, ?, ?, ?, ?, ?)";
     private static final String SQL_INSERT_DETALLE =
             "INSERT INTO detalle_venta (id_venta, id_viaje, id_asiento, nombre_pasajero, precio) VALUES (?, ?, ?, ?, ?)";
     private static final String SQL_SELECT =
-            "SELECT id_venta, id_usuario, total, estado, codigo_pago, codigo_comprobante, fecha FROM venta ";
+            "SELECT id_venta, id_usuario, total, estado, codigo_pago, codigo_comprobante, tarjeta_ultimos4, fecha FROM venta ";
     private static final String SQL_DETALLES =
             "SELECT d.id_viaje, d.id_asiento, a.numero, d.nombre_pasajero, d.precio " +
             "FROM detalle_venta d JOIN asiento a ON a.id_asiento = d.id_asiento " +
@@ -43,7 +43,8 @@ public class VentaDaoImpl implements VentaDao {
                     ps.setString(3, venta.estado());
                     ps.setString(4, venta.codigoPago());
                     ps.setString(5, venta.codigoComprobante());
-                    ps.setTimestamp(6, Timestamp.valueOf(venta.fecha()));
+                    ps.setString(6, venta.tarjetaUltimos4());
+                    ps.setTimestamp(7, Timestamp.valueOf(venta.fecha()));
                     ps.executeUpdate();
                     try (ResultSet keys = ps.getGeneratedKeys()) {
                         keys.next();
@@ -62,7 +63,7 @@ public class VentaDaoImpl implements VentaDao {
                 }
                 con.commit();
                 return new Venta(idVenta, venta.idUsuario(), venta.total(), venta.estado(),
-                        venta.codigoPago(), venta.codigoComprobante(), venta.fecha());
+                        venta.codigoPago(), venta.codigoComprobante(), venta.tarjetaUltimos4(), venta.fecha());
             } catch (SQLException e) {
                 con.rollback();
                 // UNIQUE (id_viaje, id_asiento): otro usuario compro el asiento primero
@@ -78,9 +79,18 @@ public class VentaDaoImpl implements VentaDao {
 
     @Override
     public Optional<Venta> buscarPorId(Long idVenta) {
+        return buscarUna("WHERE id_venta = ?", idVenta);
+    }
+
+    @Override
+    public Optional<Venta> buscarPorCodigo(String codigoComprobante) {
+        return buscarUna("WHERE codigo_comprobante = ?", codigoComprobante);
+    }
+
+    private Optional<Venta> buscarUna(String filtro, Object valor) {
         try (Connection con = ConexionDB.getInstancia().getConexion();
-             PreparedStatement ps = con.prepareStatement(SQL_SELECT + "WHERE id_venta = ?")) {
-            ps.setLong(1, idVenta);
+             PreparedStatement ps = con.prepareStatement(SQL_SELECT + filtro)) {
+            ps.setObject(1, valor);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? Optional.of(mapearVenta(rs)) : Optional.empty();
             }
@@ -127,6 +137,6 @@ public class VentaDaoImpl implements VentaDao {
     private Venta mapearVenta(ResultSet rs) throws SQLException {
         return new Venta(rs.getLong("id_venta"), rs.getLong("id_usuario"), rs.getBigDecimal("total"),
                 rs.getString("estado"), rs.getString("codigo_pago"), rs.getString("codigo_comprobante"),
-                rs.getTimestamp("fecha").toLocalDateTime());
+                rs.getString("tarjeta_ultimos4"), rs.getTimestamp("fecha").toLocalDateTime());
     }
 }

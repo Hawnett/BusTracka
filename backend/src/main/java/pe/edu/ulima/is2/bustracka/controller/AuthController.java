@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import pe.edu.ulima.is2.bustracka.dto.*;
 import pe.edu.ulima.is2.bustracka.service.AuthService;
 
+import java.time.Instant;
 import java.util.Map;
 
 /**
@@ -58,12 +59,15 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("mensaje", "Contrasena actualizada correctamente"));
     }
 
-    /**
-     * RF4 de soporte: valida que el JWT siga siendo valido y devuelve los
-     * datos del usuario autenticado. El "cierre de sesion" en si es
-     * responsabilidad del cliente (borrar el token); al ser JWT sin estado,
-     * no hay nada que invalidar en el servidor en este sprint.
-     */
+    /** RF4: cierre de sesion. Ademas de que el cliente borre el token, el servidor deja de aceptarlo. */
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletRequest httpRequest) {
+        authService.cerrarSesion((String) httpRequest.getAttribute("idToken"),
+                (Instant) httpRequest.getAttribute("expiraToken"));
+        return ResponseEntity.noContent().build();
+    }
+
+    /** RF4 de soporte: valida que el JWT siga siendo valido y devuelve los datos del usuario autenticado. */
     @GetMapping("/me")
     public ResponseEntity<UsuarioResponseDTO> usuarioActual(HttpServletRequest httpRequest) {
         Long idUsuario = ((Integer) httpRequest.getAttribute("idUsuario")).longValue();

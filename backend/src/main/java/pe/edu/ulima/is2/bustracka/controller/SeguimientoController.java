@@ -1,17 +1,21 @@
 package pe.edu.ulima.is2.bustracka.controller;
 
 import org.springframework.web.bind.annotation.*;
+import pe.edu.ulima.is2.bustracka.dto.SeguimientoCompartidoDTO;
 import pe.edu.ulima.is2.bustracka.dto.UbicacionResponseDTO;
+import pe.edu.ulima.is2.bustracka.service.EnlaceSeguimientoService;
 import pe.edu.ulima.is2.bustracka.service.SeguimientoService;
 
-/** Seguimiento del bus en tiempo real (Sprint 3). */
+/** Seguimiento del bus en tiempo real (Sprint 3) y enlace compartido. */
 @RestController
 public class SeguimientoController {
 
     private final SeguimientoService seguimientoService;
+    private final EnlaceSeguimientoService enlaceSeguimientoService;
 
-    public SeguimientoController(SeguimientoService seguimientoService) {
+    public SeguimientoController(SeguimientoService seguimientoService, EnlaceSeguimientoService enlaceSeguimientoService) {
         this.seguimientoService = seguimientoService;
+        this.enlaceSeguimientoService = enlaceSeguimientoService;
     }
 
     /** Con sesion iniciada. */
@@ -22,7 +26,7 @@ public class SeguimientoController {
 
     /** Sin sesion: se valida el token del enlace (ver JwtAuthFilter, ruta /api/publico). */
     @GetMapping("/api/publico/seguimiento")
-    public UbicacionResponseDTO ubicacionPublica(@RequestParam String token) {
-        return seguimientoService.obtenerUbicacionPorToken(token);
+    public SeguimientoCompartidoDTO seguimientoCompartido(@RequestParam String token) {
+        return enlaceSeguimientoService.verCompartido(token);
     }
 }

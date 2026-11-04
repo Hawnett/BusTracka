@@ -9,8 +9,12 @@ public interface ViajeDao {
     /** Viajes futuros; cualquier filtro en null se ignora. */
     List<Viaje> buscar(Long idTerminalOrigen, Long idTerminalDestino, LocalDate fecha);
 
-    /** Viajes que ya salieron (para el seguimiento en el mapa). */
+    /** Viajes que ya salieron y aun no llegan (para el seguimiento en el mapa). */
     List<Viaje> listarEnCurso();
 
+    List<Viaje> listarNoFinalizados();
+
     Optional<Viaje> buscarPorId(Long idViaje);
+
+    void actualizarRetraso(Long idViaje, int minutosRetraso);
 }

@@ -1,44 +1,48 @@
 package pe.edu.ulima.is2.bustracka.config;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import pe.edu.ulima.is2.bustracka.exception.PersistenciaException;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
 
 /**
- * Patron Singleton: garantiza una unica instancia responsable de crear
+ * Patron Singleton: garantiza una unica instancia responsable de entregar
  * conexiones JDBC a PostgreSQL a partir de application.properties.
  *
  * Decision de diseno: en vez de guardar una unica Connection compartida
  * (poco seguro en un servidor multi-hilo como Tomcat, ya que java.sql.Connection
- * no es thread-safe), el Singleton guarda la CONFIGURACION una sola vez y
+ * no es thread-safe), el Singleton guarda un pool de conexiones (HikariCP) y
  * expone getConexion() para que cada hilo/DAO obtenga su propia Connection
- * de corta vida, la use en un try-with-resources y la cierre. Esto respeta
- * el espiritu academico del patron Singleton (una sola fuente de verdad
- * para los datos de conexion) sin introducir condiciones de carrera.
+ * de corta vida, la use en un try-with-resources y la cierre (vuelve al pool).
+ * Asi no se abre una conexion nueva a PostgreSQL en cada consulta.
+ *
+ * DB_URL, DB_USUARIO y DB_PASSWORD (variables de entorno) tienen prioridad
+ * sobre application.properties.
  */
 public final class ConexionDB {
 
     private static volatile ConexionDB instancia;
 
-    private final String url;
-    private final String usuario;
-    private final String password;
+    private final HikariDataSource pool;
 
     private ConexionDB() {
         Properties props = cargarPropiedades();
-        this.url = props.getProperty("db.url");
-        this.usuario = props.getProperty("db.usuario");
-        this.password = props.getProperty("db.password");
-        try {
-            Class.forName(props.getProperty("db.driver"));
-        } catch (ClassNotFoundException e) {
-            throw new PersistenciaException("No se encontro el driver JDBC de PostgreSQL", e);
-        }
+        HikariConfig config = new HikariConfig();
+        config.setPoolName("bustracka");
+        config.setJdbcUrl(valor(props, "db.url", "DB_URL"));
+        config.setUsername(valor(props, "db.usuario", "DB_USUARIO"));
+        config.setPassword(valor(props, "db.password", "DB_PASSWORD"));
+        config.setDriverClassName(props.getProperty("db.driver"));
+        config.setMaximumPoolSize(10);
+        config.setConnectionTimeout(5000);
+        // Arranca aunque la BD aun no este lista; el error aparece al pedir una conexion.
+        config.setInitializationFailTimeout(-1);
+        this.pool = new HikariDataSource(config);
     }
 
     /** Double-checked locking: evita sincronizar en cada llamada una vez inicializado. */
@@ -53,13 +57,18 @@ public final class ConexionDB {
         return instancia;
     }
 
-    /** Cada llamada abre una conexion nueva; el llamador es responsable de cerrarla (try-with-resources). */
+    /** Conexion del pool; el llamador debe cerrarla (try-with-resources) para devolverla. */
     public Connection getConexion() {
         try {
-            return DriverManager.getConnection(url, usuario, password);
+            return pool.getConnection();
         } catch (SQLException e) {
             throw new PersistenciaException("No se pudo conectar a la base de datos", e);
         }
+    }
+
+    private static String valor(Properties props, String clave, String variableEntorno) {
+        String deEntorno = System.getenv(variableEntorno);
+        return deEntorno != null && !deEntorno.isBlank() ? deEntorno : props.getProperty(clave);
     }
 
     private Properties cargarPropiedades() {

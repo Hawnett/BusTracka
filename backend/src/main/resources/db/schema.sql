@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS terminal (
     id_terminal  SERIAL PRIMARY KEY,
     nombre       VARCHAR(120) NOT NULL,
     ciudad       VARCHAR(80)  NOT NULL,
+    direccion    VARCHAR(160),
     latitud      DOUBLE PRECISION NOT NULL,
     longitud     DOUBLE PRECISION NOT NULL
 );
@@ -41,11 +42,12 @@ CREATE TABLE IF NOT EXISTS ruta (
     duracion_min          INTEGER NOT NULL
 );
 
--- Puntos (lat/lng) por los que pasa la ruta; los usa el seguimiento (Sprint 3)
+-- Puntos (lat/lng) por los que pasa la ruta; los que tienen nombre son paradas.
 CREATE TABLE IF NOT EXISTS ruta_punto (
     id_ruta_punto  SERIAL PRIMARY KEY,
     id_ruta        INTEGER NOT NULL REFERENCES ruta (id_ruta),
     orden          INTEGER NOT NULL,
+    nombre         VARCHAR(80),
     latitud        DOUBLE PRECISION NOT NULL,
     longitud       DOUBLE PRECISION NOT NULL,
     UNIQUE (id_ruta, orden)
@@ -81,6 +83,7 @@ CREATE TABLE IF NOT EXISTS venta (
     estado             VARCHAR(20)   NOT NULL, -- PAGADA / ANULADA
     codigo_pago        VARCHAR(60)   NOT NULL, -- id de transaccion de la pasarela
     codigo_comprobante VARCHAR(40)   NOT NULL UNIQUE,
+    tarjeta_ultimos4   VARCHAR(4),             -- solo los 4 ultimos digitos, nunca la tarjeta completa
     fecha              TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -107,3 +110,19 @@ CREATE TABLE IF NOT EXISTS notificacion (
     fecha_envio      TIMESTAMP,
     UNIQUE (id_usuario, id_viaje, tipo, minutos_retraso)
     );
+
+-- ==========================================================
+-- Release 2 - Sprint 3: enlace de seguimiento compartido
+-- ==========================================================
+
+-- Enlace temporal para seguir un viaje sin iniciar sesion; vence al terminar el viaje.
+CREATE TABLE IF NOT EXISTS seguimiento (
+    id_seguimiento    SERIAL PRIMARY KEY,
+    id_venta          INTEGER     NOT NULL REFERENCES venta (id_venta),
+    id_viaje          INTEGER     NOT NULL REFERENCES viaje (id_viaje),
+    token             VARCHAR(64) NOT NULL UNIQUE,
+    fecha_creacion    TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_expiracion  TIMESTAMP   NOT NULL,
+    estado            VARCHAR(20) NOT NULL DEFAULT 'ACTIVO' CHECK (estado IN ('ACTIVO', 'REVOCADO'))
+);
+CREATE INDEX IF NOT EXISTS idx_seguimiento_venta ON seguimiento (id_venta);
