@@ -8,7 +8,7 @@ export default function Layout() {
 
   return (
     <div className="d-flex flex-column min-vh-100">
-      <Navbar nombreUsuario={usuario?.nombreUsuario} onCerrarSesion={cerrarSesion} />
+      <Navbar nombreUsuario={usuario?.nombreUsuario} esAdmin={usuario?.idRol === 1} onCerrarSesion={cerrarSesion} />
       <main className="bt-main flex-grow-1">
         <Outlet />
       </main>

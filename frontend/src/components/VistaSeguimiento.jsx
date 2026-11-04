@@ -10,7 +10,7 @@ const INTERVALO_MS = 3000;
  * Recibe la funcion de carga para servir tanto al seguimiento privado
  * (por id de viaje) como al enlace publico (por token).
  */
-export default function VistaSeguimiento({ cargarUbicacion }) {
+export default function VistaSeguimiento({ cargarUbicacion, children }) {
   const [ubicacion, setUbicacion] = useState(null);
   const [error, setError] = useState("");
 
@@ -35,24 +35,17 @@ export default function VistaSeguimiento({ cargarUbicacion }) {
     };
   }, [cargarUbicacion]);
 
-  const viaje = ubicacion && {
-    origen: ubicacion.ciudadOrigen,
-    destino: ubicacion.ciudadDestino,
-    estado: ubicacion.estado === "EN_RUTA" ? "En ruta" : "Aún no sale",
-    progreso: Math.round(ubicacion.progreso * 100),
-  };
-
   return (
     <>
       <Alerta tipo="error">{error}</Alerta>
       <div className="row g-3 g-lg-4">
-        <div className="col-12 col-lg-8 order-2 order-lg-1">
+        <div className="col-12 col-lg-7 order-2 order-lg-1">
           <div className="bt-map" aria-label="Mapa del recorrido">
             <MapaSeguimiento ubicacion={ubicacion} />
           </div>
         </div>
-        <div className="col-12 col-lg-4 order-1 order-lg-2">
-          <PanelSeguimiento viaje={viaje || {}} />
+        <div className="col-12 col-lg-5 order-1 order-lg-2">
+          <PanelSeguimiento ubicacion={ubicacion}>{children}</PanelSeguimiento>
         </div>
       </div>
     </>

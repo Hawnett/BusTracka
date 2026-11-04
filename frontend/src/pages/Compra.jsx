@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { listarAsientos, obtenerViaje } from "../api/viajeService";
 import { comprar } from "../api/ventaService";
-import { formatearFecha } from "./BuscarViajes";
+import { formatearFecha } from "../utils/formato";
 import Alerta from "../components/Alerta";
 import Campo from "../components/Campo";
 import MapaAsientos from "../components/MapaAsientos";
@@ -57,7 +57,7 @@ export default function Compra() {
         ...form,
         numeroTarjeta: form.numeroTarjeta.replace(/\s/g, ""),
       });
-      navigate(`/comprobante/${comprobante.idVenta}`);
+      navigate(`/comprobante/${comprobante.idVenta}`, { state: { recienComprado: true } });
     } catch (err) {
       setError(err.message);
       cargar(); // refresca por si el error fue de asiento ocupado
@@ -76,7 +76,7 @@ export default function Compra() {
 
   const total = (seleccion.length * Number(viaje.precio)).toFixed(2);
   const numerosElegidos = asientos.filter((a) => seleccion.includes(a.idAsiento)).map((a) => a.numero);
-  const fechaSalida = new Date(viaje.fechaSalida);
+  const fechaSalida = new Date(viaje.salidaEstimada);
   const horaSalida = fechaSalida.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", hour12: false });
   const sinSeleccion = seleccion.length === 0;
 
@@ -152,7 +152,8 @@ export default function Compra() {
               </div>
 
               <dl className="bt-filas">
-                <div className="bt-fila"><dt>Salida</dt><dd>{formatearFecha(viaje.fechaSalida)}</dd></div>
+                <div className="bt-fila"><dt>Salida</dt><dd>{formatearFecha(viaje.salidaEstimada)}</dd></div>
+                <div className="bt-fila"><dt>Terminal</dt><dd>{viaje.terminalOrigen}</dd></div>
                 <div className="bt-fila"><dt>Hora</dt><dd>{horaSalida}</dd></div>
                 <div className="bt-fila"><dt>Placa del bus</dt><dd><span className="bt-plate">{viaje.placa}</span></dd></div>
                 <div className="bt-fila"><dt>Precio por asiento</dt><dd>S/ {Number(viaje.precio).toFixed(2)}</dd></div>
