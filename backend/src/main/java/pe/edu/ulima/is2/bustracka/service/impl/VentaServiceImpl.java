@@ -3,6 +3,7 @@ package pe.edu.ulima.is2.bustracka.service.impl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import pe.edu.ulima.is2.bustracka.comprobante.GeneradorComprobante;
 import pe.edu.ulima.is2.bustracka.dao.AsientoDao;
@@ -58,10 +59,10 @@ public class VentaServiceImpl implements VentaService {
     private static final int MAX_ASIENTOS_POR_COMPRA = 6;
     private static final DateTimeFormatter FECHA_HORA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
-    private final VentaDao ventaDao = DaoFactory.crearVentaDao();
-    private final ViajeDao viajeDao = DaoFactory.crearViajeDao();
-    private final AsientoDao asientoDao = DaoFactory.crearAsientoDao();
-    private final UsuarioDao usuarioDao = DaoFactory.crearUsuarioDao();
+    private final VentaDao ventaDao;
+    private final ViajeDao viajeDao;
+    private final AsientoDao asientoDao;
+    private final UsuarioDao usuarioDao;
 
     private final PasarelaPago pasarelaPago;
     private final NotificacionService notificacionService;
@@ -70,10 +71,25 @@ public class VentaServiceImpl implements VentaService {
     private final EnlaceSeguimientoService enlaceSeguimientoService;
     private final String urlFrontend;
 
+    @Autowired
     public VentaServiceImpl(PasarelaPago pasarelaPago, NotificacionService notificacionService,
                             GeneradorQr generadorQr, GeneradorComprobante generadorComprobante,
                             EnlaceSeguimientoService enlaceSeguimientoService,
                             @Value("${app.frontend-url:http://localhost:5173}") String urlFrontend) {
+        this(pasarelaPago, notificacionService, generadorQr, generadorComprobante,
+                enlaceSeguimientoService, urlFrontend, DaoFactory.crearVentaDao(), DaoFactory.crearViajeDao(),
+                DaoFactory.crearAsientoDao(), DaoFactory.crearUsuarioDao());
+    }
+
+    // Permite proporcionar dobles por constructor, sin sustituir el servicio ni la fabrica estatica.
+    VentaServiceImpl(PasarelaPago pasarelaPago, NotificacionService notificacionService,
+                    GeneradorQr generadorQr, GeneradorComprobante generadorComprobante,
+                    EnlaceSeguimientoService enlaceSeguimientoService, String urlFrontend,
+                    VentaDao ventaDao, ViajeDao viajeDao, AsientoDao asientoDao, UsuarioDao usuarioDao) {
+        this.ventaDao = ventaDao;
+        this.viajeDao = viajeDao;
+        this.asientoDao = asientoDao;
+        this.usuarioDao = usuarioDao;
         this.pasarelaPago = pasarelaPago;
         this.notificacionService = notificacionService;
         this.generadorQr = generadorQr;
