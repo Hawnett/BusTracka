@@ -31,9 +31,9 @@ public class ViajeDaoImpl implements ViajeDao {
             "JOIN ruta r ON r.id_ruta = v.id_ruta " +
             "JOIN bus b ON b.id_bus = v.id_bus " +
             "JOIN terminal t1 ON t1.id_terminal = r.id_terminal_origen " +
-            "JOIN terminal t2 ON t2.id_terminal = r.id_terminal_destino ";
+                    "JOIN terminal t2 ON t2.id_terminal = r.id_terminal_destino ";
 
-    private static final String SQL_RETRASO = "UPDATE viaje SET minutos_retraso = ? WHERE id_viaje = ?";
+    private static final String SQL_RETRASO = "UPDATE viaje SET minutos_retraso = ?, motivo_retraso = ?, detalle_retraso = ?, avisar_pasajeros = ? WHERE id_viaje = ?";
 
     @Override
     public List<Viaje> buscar(Long idTerminalOrigen, Long idTerminalDestino, LocalDate fecha) {
@@ -74,12 +74,16 @@ public class ViajeDaoImpl implements ViajeDao {
         return res.isEmpty() ? Optional.empty() : Optional.of(res.get(0));
     }
 
+
     @Override
-    public void actualizarRetraso(Long idViaje, int minutosRetraso) {
+    public void actualizarRetraso(Long idViaje, int minutosRetraso, String motivo, String detalle, boolean avisarPasajeros) {
         try (Connection con = ConexionDB.getInstancia().getConexion();
              PreparedStatement ps = con.prepareStatement(SQL_RETRASO)) {
             ps.setInt(1, minutosRetraso);
-            ps.setLong(2, idViaje);
+            ps.setString(2, motivo);
+            ps.setString(3, detalle);
+            ps.setBoolean(4, avisarPasajeros);
+            ps.setLong(5, idViaje);
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new PersistenciaException("Error al registrar el retraso del viaje", e);

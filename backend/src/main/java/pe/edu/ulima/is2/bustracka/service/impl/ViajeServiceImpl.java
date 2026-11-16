@@ -5,6 +5,7 @@ import pe.edu.ulima.is2.bustracka.dao.AsientoDao;
 import pe.edu.ulima.is2.bustracka.dao.DaoFactory;
 import pe.edu.ulima.is2.bustracka.dao.ViajeDao;
 import pe.edu.ulima.is2.bustracka.dto.AsientoResponseDTO;
+import pe.edu.ulima.is2.bustracka.dto.RetrasoRequestDTO;
 import pe.edu.ulima.is2.bustracka.dto.ViajeResponseDTO;
 import pe.edu.ulima.is2.bustracka.exception.RecursoNoEncontradoException;
 import pe.edu.ulima.is2.bustracka.exception.ReglaNegocioException;
@@ -51,12 +52,14 @@ public class ViajeServiceImpl implements ViajeService {
     }
 
     @Override
-    public ViajeResponseDTO registrarRetraso(Long idViaje, int minutosRetraso) {
+    public ViajeResponseDTO registrarRetraso(Long idViaje, RetrasoRequestDTO datos) {
         Viaje viaje = buscar(idViaje);
         if (viaje.estadoEn(ZonaApp.ahora()) == EstadoViaje.FINALIZADO) {
             throw new ReglaNegocioException("El viaje ya llego a su destino, no se puede reprogramar");
         }
-        viajeDao.actualizarRetraso(idViaje, minutosRetraso);
+        // Volver a la hora programada (0 minutos) no es un retraso: no se avisa a nadie.
+        boolean avisar = datos.avisarPasajeros() && datos.minutosRetraso() > 0;
+        viajeDao.actualizarRetraso(idViaje, datos.minutosRetraso(), datos.motivo().name(), datos.detalle().trim(), avisar);
         return obtenerViaje(idViaje);
     }
 

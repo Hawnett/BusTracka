@@ -16,5 +16,5 @@ public interface ViajeDao {
 
     Optional<Viaje> buscarPorId(Long idViaje);
 
-    void actualizarRetraso(Long idViaje, int minutosRetraso);
+    void actualizarRetraso(Long idViaje, int minutosRetraso, String motivo, String detalle, boolean avisarPasajeros);
 }

@@ -26,6 +26,6 @@ public class AdminController {
 
     @PutMapping("/viajes/{id}/retraso")
     public ViajeResponseDTO registrarRetraso(@PathVariable Long id, @Valid @RequestBody RetrasoRequestDTO request) {
-        return viajeService.registrarRetraso(id, request.minutosRetraso());
+        return viajeService.registrarRetraso(id, request);
     }
 }
