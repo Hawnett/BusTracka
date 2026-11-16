@@ -72,8 +72,16 @@ CREATE TABLE IF NOT EXISTS viaje (
     id_bus         INTEGER        NOT NULL REFERENCES bus (id_bus),
     fecha_salida   TIMESTAMP      NOT NULL,
     precio         NUMERIC(8, 2)  NOT NULL,
-    minutos_retraso  INTEGER      NOT NULL DEFAULT 0
+    minutos_retraso  INTEGER      NOT NULL DEFAULT 0,
+    motivo_retraso   VARCHAR(20),
+    detalle_retraso  VARCHAR(200),
+    avisar_pasajeros BOOLEAN      NOT NULL DEFAULT TRUE
 );
+
+-- Bases creadas antes de la HU 5.2 ampliada: agrega las columnas que falten.
+ALTER TABLE viaje ADD COLUMN IF NOT EXISTS motivo_retraso   VARCHAR(20);
+ALTER TABLE viaje ADD COLUMN IF NOT EXISTS detalle_retraso  VARCHAR(200);
+ALTER TABLE viaje ADD COLUMN IF NOT EXISTS avisar_pasajeros BOOLEAN NOT NULL DEFAULT TRUE;
 CREATE INDEX IF NOT EXISTS idx_viaje_fecha ON viaje (fecha_salida);
 
 CREATE TABLE IF NOT EXISTS venta (
