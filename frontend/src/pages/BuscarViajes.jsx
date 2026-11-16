@@ -1,18 +1,17 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { buscarViajes, listarTerminales } from "../api/viajeService";
 import { useAuth } from "../context/AuthContext";
 import TarjetaViaje from "../components/TarjetaViaje";
-
-export const formatearFecha = (iso) =>
-  new Date(iso).toLocaleString("es-PE", { dateStyle: "medium", timeStyle: "short" });
 
 /** Sprint 2: consulta de rutas y horarios disponibles. */
 export default function BuscarViajes() {
   const navigate = useNavigate();
   const { usuario } = useAuth();
+  const [params] = useSearchParams();
   const [terminales, setTerminales] = useState([]);
-  const [filtros, setFiltros] = useState({ origen: "", destino: "", fecha: "" });
+  // Desde la pantalla de terminales se llega con ?origen= o ?destino= ya elegidos.
+  const [filtros, setFiltros] = useState({ origen: params.get("origen") || "", destino: params.get("destino") || "", fecha: "" });
   const [viajes, setViajes] = useState([]);
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);

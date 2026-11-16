@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { obtenerUsuarioActual } from "../api/authService";
+import { cerrarSesionServidor, obtenerUsuarioActual } from "../api/authService";
 
 const TOKEN_KEY = "bustracka_token";
 const AuthContext = createContext(null);
@@ -38,11 +38,16 @@ export function AuthProvider({ children }) {
       idUsuario: authResponse.idUsuario,
       nombreUsuario: authResponse.nombreUsuario,
       email: authResponse.email,
+      idRol: authResponse.idRol,
     });
   }
 
-  /** RF4: Cierre de sesion = invalidar el token en el cliente (JWT sin estado del lado del servidor). */
+  /** RF4: Cierre de sesion: el servidor invalida el token y el cliente lo borra. */
   function cerrarSesion() {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (token) {
+      cerrarSesionServidor(token).catch(() => {}); // si falla (sin red, token vencido) igual se cierra en el cliente
+    }
     localStorage.removeItem(TOKEN_KEY);
     setUsuario(null);
   }

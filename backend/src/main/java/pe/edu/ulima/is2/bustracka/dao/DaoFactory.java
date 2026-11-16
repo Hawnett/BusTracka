@@ -1,6 +1,7 @@
 package pe.edu.ulima.is2.bustracka.dao;
 
 import pe.edu.ulima.is2.bustracka.dao.impl.AsientoDaoImpl;
+import pe.edu.ulima.is2.bustracka.dao.impl.EnlaceSeguimientoDaoImpl;
 import pe.edu.ulima.is2.bustracka.dao.impl.RutaDaoImpl;
 import pe.edu.ulima.is2.bustracka.dao.impl.TerminalDaoImpl;
 import pe.edu.ulima.is2.bustracka.dao.impl.UsuarioDaoImpl;
@@ -39,5 +40,9 @@ public final class DaoFactory {
 
     public static VentaDao crearVentaDao() {
         return new VentaDaoImpl();
+    }
+
+    public static EnlaceSeguimientoDao crearEnlaceSeguimientoDao() {
+        return new EnlaceSeguimientoDaoImpl();
     }
 }

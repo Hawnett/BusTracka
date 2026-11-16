@@ -20,19 +20,25 @@ import java.io.IOException;
  *
  * Desde el Release 1 TODO lo que cuelga de /api/ exige sesion, salvo
  * login/register/recover (/api/auth/*) y /api/publico/* (enlace de
- * seguimiento compartido, que se valida con su propio token).
+ * seguimiento compartido y validacion del boleto). /api/admin/* ademas
+ * exige el rol ADMINISTRADOR.
  */
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private static final String RUTA_AUTH = "/api/auth/";
     private static final String RUTA_ME = "/api/auth/me";
+    private static final String RUTA_LOGOUT = "/api/auth/logout";
     private static final String RUTA_PUBLICA = "/api/publico/";
+    private static final String RUTA_ADMIN = "/api/admin/";
+    private static final int ID_ROL_ADMINISTRADOR = 1;
 
     private final JwtUtil jwtUtil;
+    private final SesionesCerradas sesionesCerradas;
 
-    public JwtAuthFilter(JwtUtil jwtUtil) {
+    public JwtAuthFilter(JwtUtil jwtUtil, SesionesCerradas sesionesCerradas) {
         this.jwtUtil = jwtUtil;
+        this.sesionesCerradas = sesionesCerradas;
     }
 
     @Override
@@ -53,8 +59,19 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         try {
             String token = header.substring(7);
             Claims claims = jwtUtil.validarYObtenerClaims(token, "SESION");
+            if (sesionesCerradas.estaCerrada(claims.getId())) {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "La sesion fue cerrada");
+                return;
+            }
+            Integer idRol = claims.get("rol", Integer.class);
+            if (request.getRequestURI().startsWith(RUTA_ADMIN) && (idRol == null || idRol != ID_ROL_ADMINISTRADOR)) {
+                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Solo un administrador puede hacer esta operacion");
+                return;
+            }
             request.setAttribute("idUsuario", claims.get("idUsuario", Integer.class));
             request.setAttribute("email", claims.getSubject());
+            request.setAttribute("idToken", claims.getId());
+            request.setAttribute("expiraToken", claims.getExpiration().toInstant());
             chain.doFilter(request, response);
         } catch (TokenInvalidoException e) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
@@ -70,6 +87,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (uri.startsWith(RUTA_PUBLICA)) {
             return true;
         }
-        return uri.startsWith(RUTA_AUTH) && !uri.equals(RUTA_ME);
+        return uri.startsWith(RUTA_AUTH) && !uri.equals(RUTA_ME) && !uri.equals(RUTA_LOGOUT);
     }
 }

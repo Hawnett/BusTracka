@@ -1,14 +1,4 @@
-import api, { extraerMensajeError } from "./authService";
-
-/** Envuelve una llamada axios para que los componentes reciban siempre un Error con mensaje legible. */
-async function llamar(promesa) {
-  try {
-    const { data } = await promesa;
-    return data;
-  } catch (error) {
-    throw new Error(extraerMensajeError(error));
-  }
-}
+import api, { llamar } from "./authService";
 
 export const listarTerminales = () => llamar(api.get("/terminales"));
 

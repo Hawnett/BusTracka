@@ -9,6 +9,7 @@ public class AuthResponseDTO {
     private Long idUsuario;
     private String nombreUsuario;
     private String email;
+    private Integer idRol;
     private String token;
     private String tokenType = "Bearer";
     private long expiresInMs;
@@ -16,10 +17,11 @@ public class AuthResponseDTO {
     public AuthResponseDTO() {
     }
 
-    public AuthResponseDTO(Long idUsuario, String nombreUsuario, String email, String token, long expiresInMs) {
+    public AuthResponseDTO(Long idUsuario, String nombreUsuario, String email, Integer idRol, String token, long expiresInMs) {
         this.idUsuario = idUsuario;
         this.nombreUsuario = nombreUsuario;
         this.email = email;
+        this.idRol = idRol;
         this.token = token;
         this.expiresInMs = expiresInMs;
     }
@@ -46,6 +48,14 @@ public class AuthResponseDTO {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public Integer getIdRol() {
+        return idRol;
+    }
+
+    public void setIdRol(Integer idRol) {
+        this.idRol = idRol;
     }
 
     public String getToken() {

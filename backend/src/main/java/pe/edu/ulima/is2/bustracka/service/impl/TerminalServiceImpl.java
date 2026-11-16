@@ -16,7 +16,8 @@ public class TerminalServiceImpl implements TerminalService {
     @Override
     public List<TerminalResponseDTO> listarTerminales() {
         return terminalDao.listarTodos().stream()
-                .map(t -> new TerminalResponseDTO(t.idTerminal(), t.nombre(), t.ciudad(), t.latitud(), t.longitud()))
+                .map(t -> new TerminalResponseDTO(t.idTerminal(), t.nombre(), t.ciudad(), t.direccion(),
+                        t.latitud(), t.longitud()))
                 .toList();
     }
 }

@@ -5,6 +5,8 @@ import pe.edu.ulima.is2.bustracka.dto.LoginRequestDTO;
 import pe.edu.ulima.is2.bustracka.dto.RegisterRequestDTO;
 import pe.edu.ulima.is2.bustracka.dto.UsuarioResponseDTO;
 
+import java.time.Instant;
+
 /**
  * Logica de negocio de autenticacion (SRP: el controller solo enruta HTTP,
  * este servicio decide las reglas: duplicados, hashing, emision de JWT, etc.).
@@ -15,10 +17,13 @@ public interface AuthService {
 
     AuthResponseDTO iniciarSesion(LoginRequestDTO request);
 
-    /** Genera y "envia" (simulado) el enlace de recuperacion. Devuelve el link solo para fines de demo/pruebas. */
+    /** Genera y envia por correo el enlace de recuperacion. Devuelve el link solo para fines de demo/pruebas. */
     String solicitarRecuperacion(String email);
 
     void confirmarNuevaContrasena(String token, String nuevaContrasena);
+
+    /** Invalida el token de sesion actual aunque todavia no haya vencido. */
+    void cerrarSesion(String idToken, Instant expiraToken);
 
     UsuarioResponseDTO obtenerUsuarioActual(Long idUsuario);
 }

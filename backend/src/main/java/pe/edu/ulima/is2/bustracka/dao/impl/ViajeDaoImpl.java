@@ -19,11 +19,13 @@ public class ViajeDaoImpl implements ViajeDao {
 
     /** Las fechas de viaje se guardan en hora de Lima; comparamos contra la hora actual de Lima. */
     private static final String AHORA = "(now() AT TIME ZONE 'America/Lima')";
+    private static final String SALIDA_ESTIMADA = "(v.fecha_salida + v.minutos_retraso * interval '1 minute')";
+    private static final String LLEGADA_ESTIMADA = "(" + SALIDA_ESTIMADA + " + r.duracion_min * interval '1 minute')";
 
     private static final String SQL_BASE =
-            "SELECT v.id_viaje, v.id_ruta, v.id_bus, b.placa, v.fecha_salida, v.precio, r.duracion_min, " +
-            "r.id_terminal_origen, t1.ciudad AS ciudad_origen, " +
-            "r.id_terminal_destino, t2.ciudad AS ciudad_destino, b.capacidad, " +
+            "SELECT v.id_viaje, v.id_ruta, v.id_bus, b.placa, v.fecha_salida, v.minutos_retraso, v.precio, r.duracion_min, " +
+            "r.id_terminal_origen, t1.nombre AS terminal_origen, t1.ciudad AS ciudad_origen, " +
+            "r.id_terminal_destino, t2.nombre AS terminal_destino, t2.ciudad AS ciudad_destino, b.capacidad, " +
             "b.capacidad - (SELECT COUNT(*) FROM detalle_venta dv WHERE dv.id_viaje = v.id_viaje) AS disponibles " +
             "FROM viaje v " +
             "JOIN ruta r ON r.id_ruta = v.id_ruta " +
@@ -31,10 +33,12 @@ public class ViajeDaoImpl implements ViajeDao {
             "JOIN terminal t1 ON t1.id_terminal = r.id_terminal_origen " +
             "JOIN terminal t2 ON t2.id_terminal = r.id_terminal_destino ";
 
+    private static final String SQL_RETRASO = "UPDATE viaje SET minutos_retraso = ? WHERE id_viaje = ?";
+
     @Override
     public List<Viaje> buscar(Long idTerminalOrigen, Long idTerminalDestino, LocalDate fecha) {
         // SQL dinamico: solo se agregan los filtros que el usuario envio.
-        StringBuilder sql = new StringBuilder(SQL_BASE).append("WHERE v.fecha_salida > " + AHORA + " ");
+        StringBuilder sql = new StringBuilder(SQL_BASE).append("WHERE " + SALIDA_ESTIMADA + " > " + AHORA + " ");
         List<Object> params = new ArrayList<>();
         if (idTerminalOrigen != null) {
             sql.append("AND r.id_terminal_origen = ? ");
@@ -55,14 +59,31 @@ public class ViajeDaoImpl implements ViajeDao {
 
     @Override
     public List<Viaje> listarEnCurso() {
-        return consultar(SQL_BASE + "WHERE v.fecha_salida <= " + AHORA + " AND v.fecha_salida > " + AHORA + " - interval '1 day' " +
-                "ORDER BY v.fecha_salida", List.of());
+        return consultar(SQL_BASE + "WHERE " + SALIDA_ESTIMADA + " <= " + AHORA + " AND " + LLEGADA_ESTIMADA + " > " + AHORA +
+                " ORDER BY v.fecha_salida", List.of());
+    }
+
+    @Override
+    public List<Viaje> listarNoFinalizados() {
+        return consultar(SQL_BASE + "WHERE " + LLEGADA_ESTIMADA + " > " + AHORA + " ORDER BY v.fecha_salida", List.of());
     }
 
     @Override
     public Optional<Viaje> buscarPorId(Long idViaje) {
         List<Viaje> res = consultar(SQL_BASE + "WHERE v.id_viaje = ?", List.of(idViaje));
         return res.isEmpty() ? Optional.empty() : Optional.of(res.get(0));
+    }
+
+    @Override
+    public void actualizarRetraso(Long idViaje, int minutosRetraso) {
+        try (Connection con = ConexionDB.getInstancia().getConexion();
+             PreparedStatement ps = con.prepareStatement(SQL_RETRASO)) {
+            ps.setInt(1, minutosRetraso);
+            ps.setLong(2, idViaje);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new PersistenciaException("Error al registrar el retraso del viaje", e);
+        }
     }
 
     private List<Viaje> consultar(String sql, List<Object> params) {
@@ -85,10 +106,10 @@ public class ViajeDaoImpl implements ViajeDao {
 
     private Viaje mapearFila(ResultSet rs) throws SQLException {
         return new Viaje(rs.getLong("id_viaje"), rs.getLong("id_ruta"), rs.getLong("id_bus"),
-                rs.getString("placa"), rs.getTimestamp("fecha_salida").toLocalDateTime(),
+                rs.getString("placa"), rs.getTimestamp("fecha_salida").toLocalDateTime(), rs.getInt("minutos_retraso"),
                 rs.getBigDecimal("precio"), rs.getInt("duracion_min"),
-                rs.getLong("id_terminal_origen"), rs.getString("ciudad_origen"),
-                rs.getLong("id_terminal_destino"), rs.getString("ciudad_destino"),
+                rs.getLong("id_terminal_origen"), rs.getString("terminal_origen"), rs.getString("ciudad_origen"),
+                rs.getLong("id_terminal_destino"), rs.getString("terminal_destino"), rs.getString("ciudad_destino"),
                 rs.getInt("capacidad"), rs.getInt("disponibles"));
     }
 }

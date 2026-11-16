@@ -15,7 +15,7 @@ import java.util.List;
 public class TerminalDaoImpl implements TerminalDao {
 
     private static final String SQL_LISTAR =
-            "SELECT id_terminal, nombre, ciudad, latitud, longitud FROM terminal ORDER BY ciudad";
+            "SELECT id_terminal, nombre, ciudad, direccion, latitud, longitud FROM terminal ORDER BY ciudad";
 
     @Override
     public List<Terminal> listarTodos() {
@@ -24,8 +24,8 @@ public class TerminalDaoImpl implements TerminalDao {
              ResultSet rs = ps.executeQuery()) {
             List<Terminal> lista = new ArrayList<>();
             while (rs.next()) {
-                lista.add(new Terminal(rs.getLong("id_terminal"), rs.getString("nombre"),
-                        rs.getString("ciudad"), rs.getDouble("latitud"), rs.getDouble("longitud")));
+                lista.add(new Terminal(rs.getLong("id_terminal"), rs.getString("nombre"), rs.getString("ciudad"),
+                        rs.getString("direccion"), rs.getDouble("latitud"), rs.getDouble("longitud")));
             }
             return lista;
         } catch (SQLException e) {

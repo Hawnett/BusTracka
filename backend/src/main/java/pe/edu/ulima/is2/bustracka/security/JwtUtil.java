@@ -6,12 +6,16 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import pe.edu.ulima.is2.bustracka.exception.TokenInvalidoException;
 
 import javax.crypto.SecretKey;
+import java.util.Base64;
 import java.util.Date;
+import java.util.UUID;
 
 /**
  * Encapsula la generacion/validacion de JWT (HS256). Se usa tanto para el
@@ -22,50 +26,51 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
+    private static final Logger log = LoggerFactory.getLogger(JwtUtil.class);
+
     private final SecretKey clave;
     private final long expiracionSesionMs;
 
-    public JwtUtil(@Value("${jwt.secret}") String secretoBase64,
-                    @Value("${jwt.expiration-ms}") long expiracionSesionMs) {
-        this.clave = Keys.hmacShaKeyFor(java.util.Base64.getDecoder().decode(secretoBase64));
+    public JwtUtil(@Value("${jwt.secret:}") String secretoBase64,
+                   @Value("${jwt.expiration-ms}") long expiracionSesionMs) {
+        this.clave = crearClave(secretoBase64);
         this.expiracionSesionMs = expiracionSesionMs;
+    }
+
+    /** Sin JWT_SECRET se usa una clave aleatoria: funciona, pero las sesiones se pierden al reiniciar. */
+    private static SecretKey crearClave(String secretoBase64) {
+        if (secretoBase64 == null || secretoBase64.isBlank()) {
+            log.warn("JWT_SECRET no esta definido: se usa una clave aleatoria para esta ejecucion");
+            return Keys.secretKeyFor(SignatureAlgorithm.HS256);
+        }
+        return Keys.hmacShaKeyFor(Base64.getDecoder().decode(secretoBase64));
     }
 
     public long getExpiracionSesionMs() {
         return expiracionSesionMs;
     }
 
-    public String generarTokenSesion(Long idUsuario, String email) {
-        return generarToken(idUsuario, email, "SESION", expiracionSesionMs);
-    }
-
-    /** Token de recuperacion de contrasena: vida corta (15 min) y "purpose" distinto al de sesion. */
-    public String generarTokenRecuperacion(Long idUsuario, String email) {
-        return generarToken(idUsuario, email, "RECUPERACION", 15 * 60 * 1000L);
-    }
-
-    /** Token de enlace de seguimiento compartible: identifica un viaje, no a un usuario. */
-    public String generarTokenSeguimiento(Long idViaje, long vigenciaMs) {
-        Date ahora = new Date();
+    public String generarTokenSesion(Long idUsuario, String email, Integer idRol) {
         return Jwts.builder()
-                .setSubject("seguimiento")
-                .claim("idViaje", idViaje)
-                .claim("proposito", "SEGUIMIENTO")
-                .setIssuedAt(ahora)
-                .setExpiration(new Date(ahora.getTime() + vigenciaMs))
+                .setId(UUID.randomUUID().toString()) // permite invalidar este token al cerrar sesion
+                .setSubject(email)
+                .claim("idUsuario", idUsuario)
+                .claim("rol", idRol)
+                .claim("proposito", "SESION")
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + expiracionSesionMs))
                 .signWith(clave, SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    private String generarToken(Long idUsuario, String email, String proposito, long vigenciaMs) {
-        Date ahora = new Date();
-        Date expiracion = new Date(ahora.getTime() + vigenciaMs);
+    /** Token de recuperacion de contrasena: vida corta (15 min) y "purpose" distinto al de sesion. */
+    public String generarTokenRecuperacion(Long idUsuario, String email) {
         return Jwts.builder()
                 .setSubject(email)
                 .claim("idUsuario", idUsuario)
-                .claim("proposito", proposito)
-                .setIssuedAt(ahora)
-                .setExpiration(expiracion)
+                .claim("proposito", "RECUPERACION")
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + 15 * 60 * 1000L))
                 .signWith(clave, SignatureAlgorithm.HS256)
                 .compact();
     }

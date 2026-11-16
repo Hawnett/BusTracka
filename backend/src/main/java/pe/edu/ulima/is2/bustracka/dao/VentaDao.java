@@ -15,6 +15,8 @@ public interface VentaDao {
 
     Optional<Venta> buscarPorId(Long idVenta);
 
+    Optional<Venta> buscarPorCodigo(String codigoComprobante);
+
     List<Venta> listarPorUsuario(Long idUsuario);
 
     List<DetalleVenta> listarDetalles(Long idVenta);

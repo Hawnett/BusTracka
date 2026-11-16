@@ -373,7 +373,8 @@ h4,
   left: 0;
   z-index: 1030;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
   background: var(--bt-ink);
   border-top: 4px solid var(--bt-yellow);
   padding-bottom: env(safe-area-inset-bottom);
@@ -1702,4 +1703,308 @@ h4,
   letter-spacing: 0.1em;
   text-align: center;
   text-transform: uppercase;
+}
+
+/* =========================================================
+   Release 2: historial, itinerario, compartir y operaciones
+   ========================================================= */
+
+/* ---------- Estado del pasaje ---------- */
+.bt-estado {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border: var(--bt-border);
+  background: var(--bt-paper-2);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.bt-estado.is-proximo {
+  background: var(--bt-yellow);
+}
+
+.bt-estado.is-curso {
+  background: var(--bt-green);
+  color: var(--bt-paper);
+}
+
+.bt-estado.is-cancelado {
+  background: var(--bt-ink);
+  color: var(--bt-paper);
+}
+
+.bt-retraso {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  background: var(--bt-ink);
+  color: var(--bt-yellow);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ---------- Pestañas de filtro ---------- */
+.bt-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.bt-tab {
+  padding: 0.45rem 0.9rem;
+  border: var(--bt-border);
+  background: var(--bt-paper-2);
+  color: var(--bt-ink);
+  font-family: var(--bt-font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.bt-tab.is-active {
+  background: var(--bt-ink);
+  color: var(--bt-yellow);
+}
+
+/* ---------- Historial: columna de estado ---------- */
+.bt-historial .bt-estado {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+}
+
+.bt-historial .bt-libreta-accion {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.bt-historial .bt-code {
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+}
+
+/* En tablet se mantiene la ficha apilada: seis columnas no entran. */
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .bt-historial .bt-libreta-head {
+    display: none;
+  }
+
+  .bt-historial .bt-libreta-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 1rem;
+  }
+
+  .bt-historial .bt-libreta-ruta,
+  .bt-historial .bt-libreta-accion {
+    grid-column: 1 / -1;
+    padding: 0;
+    border-left: 0;
+  }
+}
+
+@media (min-width: 992px) {
+  .bt-historial .bt-libreta-head,
+  .bt-historial .bt-libreta-row {
+    grid-template-columns: 10rem minmax(0, 1fr) 10rem 7rem 6.5rem 12rem;
+  }
+
+  .bt-historial .bt-estado {
+    grid-column: auto;
+    grid-row: auto;
+    justify-self: start;
+  }
+}
+
+/* ---------- Datos del viaje en vivo ---------- */
+.bt-datos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0 0 1.25rem;
+}
+
+.bt-dato {
+  min-width: 0;
+  padding: 0.7rem 0.8rem;
+  border: var(--bt-border);
+  background: var(--bt-paper);
+}
+
+.bt-dato dt {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bt-ink-2);
+}
+
+.bt-dato dd {
+  margin: 0.25rem 0 0;
+  font-family: var(--bt-font-display);
+  font-size: 1.55rem;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Paradas del itinerario ---------- */
+.bt-paradas {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: var(--bt-border);
+  background: var(--bt-paper-2);
+}
+
+.bt-paradas li {
+  display: grid;
+  grid-template-columns: 3.4rem 4.8rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.85rem;
+}
+
+.bt-paradas li + li {
+  border-top: 2px dotted var(--bt-ink-2);
+}
+
+.bt-paradas time {
+  font-weight: 700;
+}
+
+.bt-parada-tag {
+  justify-self: start;
+  padding: 0.1rem 0.45rem;
+  border: var(--bt-border);
+  background: var(--bt-paper);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.bt-parada-tag.is-paso {
+  background: var(--bt-green);
+  color: var(--bt-paper);
+}
+
+.bt-parada-tag.is-actual {
+  background: var(--bt-yellow);
+}
+
+/* ---------- Compartir viaje ---------- */
+.bt-enlace {
+  display: flex;
+  border: var(--bt-border);
+  background: #fff;
+}
+
+.bt-enlace input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.7rem 0.9rem;
+  border: 0;
+  background: transparent;
+  font-family: var(--bt-font-mono);
+  font-size: 0.8rem;
+}
+
+.bt-enlace .bt-btn {
+  border-width: 0 0 0 var(--bt-line);
+  box-shadow: none;
+}
+
+.bt-compartir {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (min-width: 576px) {
+  .bt-compartir {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.bt-btn-whatsapp {
+  background: #25d366;
+  color: var(--bt-ink);
+}
+
+.bt-qr--lg {
+  width: 176px;
+  height: 176px;
+}
+
+.bt-qr img {
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- Validacion del boleto ---------- */
+.bt-validez {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 1rem;
+  border: 4px double currentColor;
+  font-family: var(--bt-font-display);
+  font-size: 2.4rem;
+  line-height: 1;
+  transform: rotate(-4deg);
+}
+
+.bt-validez.is-valido {
+  color: var(--bt-green);
+}
+
+.bt-validez.is-invalido {
+  color: var(--bt-ink);
+}
+
+/* ---------- Tabla (operaciones) ---------- */
+.bt-tabla {
+  width: 100%;
+  border: var(--bt-border);
+  background: var(--bt-paper-2);
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.bt-tabla th {
+  padding: 0.6rem 0.8rem;
+  background: var(--bt-ink);
+  color: var(--bt-yellow);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.bt-tabla td {
+  padding: 0.6rem 0.8rem;
+  border-top: var(--bt-border);
+  vertical-align: middle;
+}
+
+.bt-input-min {
+  width: 5.5rem;
+  min-height: 40px;
+  padding: 0.35rem 0.5rem;
+  border: var(--bt-border);
+  border-radius: 0;
+  background: #fff;
+  font-family: var(--bt-font-mono);
+  font-weight: 600;
 }

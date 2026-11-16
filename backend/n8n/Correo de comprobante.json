@@ -22,9 +22,10 @@
         "fromEmail": "notificaciones@bustracka.pe",
         "toEmail": "={{ $json.body.para }}",
         "subject": "={{ $json.body.asunto }}",
-        "emailFormat": "text",
+        "emailFormat": "both",
         "text": "={{ $json.body.cuerpo }}",
-        "options": {}
+        "options": {},
+        "html": "={{ $json.body.html }}"
       },
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,

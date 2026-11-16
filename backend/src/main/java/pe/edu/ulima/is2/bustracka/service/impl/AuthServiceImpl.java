@@ -3,6 +3,7 @@ package pe.edu.ulima.is2.bustracka.service.impl;
 import io.jsonwebtoken.Claims;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import pe.edu.ulima.is2.bustracka.dao.DaoFactory;
@@ -15,8 +16,13 @@ import pe.edu.ulima.is2.bustracka.exception.CorreoDuplicadoException;
 import pe.edu.ulima.is2.bustracka.exception.CredencialesInvalidasException;
 import pe.edu.ulima.is2.bustracka.exception.RecursoNoEncontradoException;
 import pe.edu.ulima.is2.bustracka.model.Usuario;
+import pe.edu.ulima.is2.bustracka.notificacion.NotificacionService;
+import pe.edu.ulima.is2.bustracka.notificacion.PlantillaCorreo;
 import pe.edu.ulima.is2.bustracka.security.JwtUtil;
+import pe.edu.ulima.is2.bustracka.security.SesionesCerradas;
 import pe.edu.ulima.is2.bustracka.service.AuthService;
+
+import java.time.Instant;
 
 /**
  * Implementacion de AuthService.
@@ -36,11 +42,18 @@ public class AuthServiceImpl implements AuthService {
     private final UsuarioDao usuarioDao;
     private final JwtUtil jwtUtil;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final NotificacionService notificacionService;
+    private final SesionesCerradas sesionesCerradas;
+    private final String urlFrontend;
 
-    public AuthServiceImpl(JwtUtil jwtUtil) {
+    public AuthServiceImpl(JwtUtil jwtUtil, NotificacionService notificacionService, SesionesCerradas sesionesCerradas,
+                           @Value("${app.frontend-url:http://localhost:5173}") String urlFrontend) {
         this.usuarioDao = DaoFactory.crearUsuarioDao();
         this.jwtUtil = jwtUtil;
         this.passwordEncoder = new BCryptPasswordEncoder();
+        this.notificacionService = notificacionService;
+        this.sesionesCerradas = sesionesCerradas;
+        this.urlFrontend = urlFrontend;
     }
 
     @Override
@@ -57,9 +70,7 @@ public class AuthServiceImpl implements AuthService {
         nuevoUsuario.setIdRol(ID_ROL_PASAJERO_POR_DEFECTO);
 
         Usuario usuarioGuardado = usuarioDao.guardar(nuevoUsuario);
-        String token = jwtUtil.generarTokenSesion(usuarioGuardado.getIdUsuario(), usuarioGuardado.getEmail());
-
-        return construirRespuesta(usuarioGuardado, token);
+        return construirRespuesta(usuarioGuardado);
     }
 
     @Override
@@ -70,24 +81,25 @@ public class AuthServiceImpl implements AuthService {
         if (!usuario.isActivo() || !passwordEncoder.matches(request.getContrasena(), usuario.getContrasena())) {
             throw new CredencialesInvalidasException();
         }
-
-        String token = jwtUtil.generarTokenSesion(usuario.getIdUsuario(), usuario.getEmail());
-        return construirRespuesta(usuario, token);
+        return construirRespuesta(usuario);
     }
 
     @Override
     public String solicitarRecuperacion(String email) {
+        // La HU 1.3 pide avisar cuando el correo no esta registrado.
         Usuario usuario = usuarioDao.buscarPorEmail(email)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No existe una cuenta con ese email"));
 
         String tokenRecuperacion = jwtUtil.generarTokenRecuperacion(usuario.getIdUsuario(), usuario.getEmail());
-        String enlace = "https://bustracka.app/reset-password?token=" + tokenRecuperacion;
+        String enlace = urlFrontend + "/recuperar?token=" + tokenRecuperacion;
 
-        // Simulacion de envio de correo: en produccion aqui iria una integracion
-        // real (SMTP, SendGrid, SES, etc.). Para el Sprint 1 solo se deja
-        // registrado en el log, y se retorna el enlace para poder probar el flujo
-        // completo desde el frontend sin depender de un servidor de correo.
-        log.info("[SIMULACION DE EMAIL] Enviando enlace de recuperacion a {}: {}", email, enlace);
+        PlantillaCorreo correo = new PlantillaCorreo(usuario.getNombreUsuario())
+                .parrafo("Recibimos una solicitud para cambiar la contraseña de tu cuenta BusTracka. "
+                        + "El enlace vence en 15 minutos.")
+                .boton("Crear una nueva contraseña", enlace, true)
+                .parrafo("Si no fuiste tú, ignora este correo: tu contraseña no cambiará.");
+        notificacionService.enviarCorreo(email, "Recupera tu contraseña de BusTracka", correo.texto(), correo.html());
+        log.info("Enlace de recuperacion enviado a {}", email);
 
         return enlace;
     }
@@ -104,6 +116,11 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    public void cerrarSesion(String idToken, Instant expiraToken) {
+        sesionesCerradas.cerrar(idToken, expiraToken);
+    }
+
+    @Override
     public UsuarioResponseDTO obtenerUsuarioActual(Long idUsuario) {
         Usuario usuario = usuarioDao.buscarPorId(idUsuario)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado"));
@@ -111,8 +128,9 @@ public class AuthServiceImpl implements AuthService {
                 usuario.getEmail(), usuario.getIdRol());
     }
 
-    private AuthResponseDTO construirRespuesta(Usuario usuario, String token) {
+    private AuthResponseDTO construirRespuesta(Usuario usuario) {
+        String token = jwtUtil.generarTokenSesion(usuario.getIdUsuario(), usuario.getEmail(), usuario.getIdRol());
         return new AuthResponseDTO(usuario.getIdUsuario(), usuario.getNombreUsuario(),
-                usuario.getEmail(), token, jwtUtil.getExpiracionSesionMs());
+                usuario.getEmail(), usuario.getIdRol(), token, jwtUtil.getExpiracionSesionMs());
     }
 }

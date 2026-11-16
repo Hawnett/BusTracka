@@ -15,7 +15,7 @@ import java.util.List;
 public class RutaDaoImpl implements RutaDao {
 
     private static final String SQL_PUNTOS =
-            "SELECT orden, latitud, longitud FROM ruta_punto WHERE id_ruta = ? ORDER BY orden";
+            "SELECT orden, nombre, latitud, longitud FROM ruta_punto WHERE id_ruta = ? ORDER BY orden";
 
     @Override
     public List<PuntoRuta> listarPuntos(Long idRuta) {
@@ -25,7 +25,8 @@ public class RutaDaoImpl implements RutaDao {
             try (ResultSet rs = ps.executeQuery()) {
                 List<PuntoRuta> puntos = new ArrayList<>();
                 while (rs.next()) {
-                    puntos.add(new PuntoRuta(rs.getInt("orden"), rs.getDouble("latitud"), rs.getDouble("longitud")));
+                    puntos.add(new PuntoRuta(rs.getInt("orden"), rs.getString("nombre"),
+                            rs.getDouble("latitud"), rs.getDouble("longitud")));
                 }
                 return puntos;
             }

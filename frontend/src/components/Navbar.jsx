@@ -5,9 +5,13 @@ const ENLACES = [
   { numero: "01", etiqueta: "Buscar viajes", icono: "bi-search", to: "/", end: true },
   { numero: "02", etiqueta: "Mis compras", icono: "bi-ticket-perforated", to: "/compras" },
   { numero: "03", etiqueta: "Seguimiento", icono: "bi-geo-alt", to: "/seguimiento" },
+  { numero: "04", etiqueta: "Terminales", icono: "bi-building", to: "/terminales" },
 ];
 
-export default function Navbar({ nombreUsuario, onCerrarSesion }) {
+const ENLACE_ADMIN = { numero: "05", etiqueta: "Operaciones", icono: "bi-sliders", to: "/operaciones" };
+
+export default function Navbar({ nombreUsuario, esAdmin, onCerrarSesion }) {
+  const enlaces = esAdmin ? [...ENLACES, ENLACE_ADMIN] : ENLACES;
   const inicial = nombreUsuario ? nombreUsuario.charAt(0).toUpperCase() : "?";
   const clase = ({ isActive }) => "bt-nav-link" + (isActive ? " is-active" : "");
 
@@ -18,7 +22,7 @@ export default function Navbar({ nombreUsuario, onCerrarSesion }) {
           <Logo className="py-2" />
 
           <ul className="bt-nav-links list-unstyled mb-0">
-            {ENLACES.map((e) => (
+            {enlaces.map((e) => (
               <li key={e.to}>
                 <NavLink to={e.to} end={e.end} className={clase}>
                   <span className="bt-nav-num" aria-hidden="true">{e.numero}</span>
@@ -42,7 +46,7 @@ export default function Navbar({ nombreUsuario, onCerrarSesion }) {
       </header>
 
       <nav className="bt-tabbar" aria-label="Navegación móvil">
-        {ENLACES.map((e) => (
+        {enlaces.map((e) => (
           <NavLink key={e.to} to={e.to} end={e.end} className={({ isActive }) => (isActive ? "is-active" : "")}>
             <i className={`bi ${e.icono}`} aria-hidden="true"></i>
             {e.etiqueta}

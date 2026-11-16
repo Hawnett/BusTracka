@@ -23,6 +23,20 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Si la sesion vencio o se cerro en el servidor, se vuelve al login en vez de mostrar errores sueltos.
+api.interceptors.response.use(
+  (respuesta) => respuesta,
+  (error) => {
+    // Las rutas /auth/* manejan su propio 401 (credenciales invalidas, sesion restaurada en AuthContext).
+    const esAuth = error.config?.url?.startsWith("/auth/");
+    if (error.response?.status === 401 && !esAuth && localStorage.getItem("bustracka_token")) {
+      localStorage.removeItem("bustracka_token");
+      window.location.assign("/login");
+    }
+    return Promise.reject(error);
+  }
+);
+
 /**
  * Normaliza los errores de axios a un mensaje de texto legible, ya que el
  * backend siempre responde con { status, error, message } (ver
@@ -36,6 +50,18 @@ export function extraerMensajeError(error) {
     return "No se pudo conectar con el servidor. Verifica que el backend este corriendo.";
   }
   return "Ocurrio un error inesperado.";
+}
+
+/** Envuelve una llamada axios: devuelve los datos o lanza un Error con mensaje legible y el codigo HTTP. */
+export async function llamar(promesa) {
+  try {
+    const { data } = await promesa;
+    return data;
+  } catch (error) {
+    const e = new Error(extraerMensajeError(error));
+    e.status = error.response?.status;
+    throw e;
+  }
 }
 
 export async function login({ email, contrasena }) {
@@ -75,6 +101,13 @@ export async function confirmarRecuperacion({ token, nuevaContrasena }) {
     throw new Error(extraerMensajeError(error));
   }
 }
+
+/**
+ * Cierra la sesion tambien en el servidor: el token deja de ser aceptado aunque no haya vencido.
+ * El token va explicito porque el cliente lo borra de localStorage en el mismo momento.
+ */
+export const cerrarSesionServidor = (token) =>
+  llamar(api.post("/auth/logout", null, { headers: { Authorization: `Bearer ${token}` } }));
 
 export async function obtenerUsuarioActual() {
   try {

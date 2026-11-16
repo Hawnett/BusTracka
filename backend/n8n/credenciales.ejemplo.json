@@ -1,0 +1,28 @@
+[
+  {
+    "id": "a4ZdK30MtWiFDdbM",
+    "name": "BusTracka DB",
+    "type": "postgres",
+    "data": {
+      "host": "postgres",
+      "port": 5432,
+      "database": "bustracka_db",
+      "user": "bustracka_user",
+      "password": "bustracka_pass",
+      "ssl": "disable"
+    }
+  },
+  {
+    "id": "2BMmJT1CiuVVCkj5",
+    "name": "Mailpit (pruebas)",
+    "type": "smtp",
+    "data": {
+      "host": "mailpit",
+      "port": 1025,
+      "secure": false,
+      "user": "",
+      "password": "",
+      "disableStartTls": true
+    }
+  }
+]

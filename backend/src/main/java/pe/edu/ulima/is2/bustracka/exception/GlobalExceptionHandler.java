@@ -47,6 +47,11 @@ public class GlobalExceptionHandler {
         return construirRespuesta(HttpStatus.PAYMENT_REQUIRED, ex.getMessage());
     }
 
+    @ExceptionHandler(EnlaceInvalidoException.class)
+    public ResponseEntity<ApiErrorResponseDTO> handleEnlaceInvalido(EnlaceInvalidoException ex) {
+        return construirRespuesta(HttpStatus.GONE, ex.getMessage());
+    }
+
     @ExceptionHandler(ReglaNegocioException.class)
     public ResponseEntity<ApiErrorResponseDTO> handleReglaNegocio(ReglaNegocioException ex) {
         return construirRespuesta(HttpStatus.BAD_REQUEST, ex.getMessage());
