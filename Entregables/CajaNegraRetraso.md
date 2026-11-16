@@ -49,4 +49,4 @@ Cada caso no válido cubre una sola clase no válida y deja las demás entradas 
 | D-05 | Un dato con tipo equivocado (CP7 `"abc"`, CP11 id `abc`) devolvía 500 en vez de 400 | `GlobalExceptionHandler` no manejaba `HttpMessageNotReadableException` ni `MethodArgumentTypeMismatchException`; caían en el manejador genérico de `Exception` | Se agregaron los dos manejadores, que responden 400 con un mensaje claro | Cerrado |
 | D-06 | Un decimal (CP8 `15.5`) se aceptaba y se guardaba truncado como 15 minutos | Jackson convierte decimales a entero por defecto | `spring.jackson.deserialization.accept-float-as-int=false` en `application.properties` | Cerrado |
 
-Después de la corrección, los 14 casos dan el resultado esperado y `mvn test` sigue en verde (48 pruebas).
+Después de la corrección, los 14 casos dan el resultado esperado y `mvn test` sigue en verde (52 pruebas).
