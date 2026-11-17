@@ -1,11 +1,13 @@
 #!/bin/bash
 # Caja negra de GET /api/viajes (HU 2.1 a 2.3): 5 entradas = origen, destino, fecha,
 # pasajeros y franja (horario de salida). Ejecutar con la BD recien cargada (schema.sql + seed.sql).
-B=${B:-http://127.0.0.1:8080/api}
+B=${B:-http://localhost:8080/api}
 C=$(curl -s -X POST $B/auth/login -H 'Content-Type: application/json' -d '{"email":"cliente@bustracka.pe","contrasena":"Cliente1234"}' | sed -E 's/.*"token":"([^"]+)".*/\1/')
-MANANA=$(TZ=America/Lima date -d tomorrow +%F); AYER=$(TZ=America/Lima date -d yesterday +%F)
+# date -v funciona en Mac; date -d en Linux
+MANANA=$(TZ=America/Lima date -v+1d +%F 2>/dev/null || TZ=America/Lima date -d tomorrow +%F)
+AYER=$(TZ=America/Lima date -v-1d +%F 2>/dev/null || TZ=America/Lima date -d yesterday +%F)
 run(){ if [ "$3" = "sin-token" ]; then H="X-Sin-Token: 1"; else H="Authorization: Bearer $C"; fi
-  r=$(curl -s -w "\n%{http_code}" "$B/viajes?$2" -H "$H"); code=$(echo "$r" | tail -1); cuerpo=$(echo "$r" | head -n -1)
+  r=$(curl -s -m 15 -w "\n%{http_code}" "$B/viajes?$2" -H "$H"); code=$(echo "$r" | tail -1); cuerpo=$(echo "$r" | sed '$d')
   if [ "$code" = "200" ]; then res="$(echo "$cuerpo" | grep -o '"idViaje":[0-9]*' | wc -l) viaje(s): $(echo "$cuerpo" | grep -o '"idViaje":[0-9]*' | cut -d: -f2 | tr '\n' ' ')"
   else res=$(echo "$cuerpo" | sed -E 's/.*"message":"([^"]*)".*/\1/' | cut -c1-80); fi
   printf '%-5s HTTP %s  %s\n' "$1" "$code" "$res"; }
