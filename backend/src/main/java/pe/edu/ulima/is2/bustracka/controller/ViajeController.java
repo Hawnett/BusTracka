@@ -4,6 +4,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 import pe.edu.ulima.is2.bustracka.dto.AsientoResponseDTO;
 import pe.edu.ulima.is2.bustracka.dto.ViajeResponseDTO;
+import pe.edu.ulima.is2.bustracka.model.FranjaHoraria;
 import pe.edu.ulima.is2.bustracka.service.ViajeService;
 
 import java.time.LocalDate;
@@ -24,8 +25,10 @@ public class ViajeController {
     public List<ViajeResponseDTO> buscar(
             @RequestParam(required = false) Long origen,
             @RequestParam(required = false) Long destino,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
-        return viajeService.buscarViajes(origen, destino, fecha);
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
+            @RequestParam(required = false) Integer pasajeros,
+            @RequestParam(required = false) FranjaHoraria franja) {
+        return viajeService.buscarViajes(origen, destino, fecha, pasajeros, franja);
     }
 
     @GetMapping("/en-curso")

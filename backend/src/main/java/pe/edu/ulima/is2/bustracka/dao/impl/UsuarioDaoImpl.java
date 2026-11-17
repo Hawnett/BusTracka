@@ -21,15 +21,15 @@ import java.util.Optional;
 public class UsuarioDaoImpl implements UsuarioDao {
 
     private static final String SQL_INSERT =
-            "INSERT INTO usuario (nombre_usuario, contrasena, email, estado, id_rol) " +
-            "VALUES (?, ?, ?, ?, ?)";
+            "INSERT INTO usuario (nombre_usuario, contrasena, email, estado, id_rol, celular) " +
+            "VALUES (?, ?, ?, ?, ?, ?)";
 
     private static final String SQL_SELECT_POR_EMAIL =
-            "SELECT id_usuario, nombre_usuario, contrasena, email, estado, id_rol, fecha_creacion " +
+            "SELECT id_usuario, nombre_usuario, contrasena, email, estado, id_rol, celular, fecha_creacion " +
             "FROM usuario WHERE email = ?";
 
     private static final String SQL_SELECT_POR_ID =
-            "SELECT id_usuario, nombre_usuario, contrasena, email, estado, id_rol, fecha_creacion " +
+            "SELECT id_usuario, nombre_usuario, contrasena, email, estado, id_rol, celular, fecha_creacion " +
             "FROM usuario WHERE id_usuario = ?";
 
     private static final String SQL_EXISTE_POR_EMAIL =
@@ -48,6 +48,7 @@ public class UsuarioDaoImpl implements UsuarioDao {
             ps.setString(3, usuario.getEmail());
             ps.setString(4, usuario.getEstado());
             ps.setInt(5, usuario.getIdRol());
+            ps.setString(6, usuario.getCelular());
             ps.executeUpdate();
 
             try (ResultSet keys = ps.getGeneratedKeys()) {
@@ -128,6 +129,7 @@ public class UsuarioDaoImpl implements UsuarioDao {
         usuario.setEmail(rs.getString("email"));
         usuario.setEstado(rs.getString("estado"));
         usuario.setIdRol(rs.getInt("id_rol"));
+        usuario.setCelular(rs.getString("celular"));
         Timestamp fecha = rs.getTimestamp("fecha_creacion");
         if (fecha != null) {
             usuario.setFechaCreacion(fecha.toLocalDateTime());

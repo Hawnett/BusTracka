@@ -3,9 +3,11 @@ package pe.edu.ulima.is2.bustracka.exception;
 import pe.edu.ulima.is2.bustracka.dto.ApiErrorResponseDTO;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.stream.Collectors;
 
@@ -70,6 +72,16 @@ public class GlobalExceptionHandler {
                 .map(f -> f.getField() + ": " + f.getDefaultMessage())
                 .collect(Collectors.joining(" | "));
         return construirRespuesta(HttpStatus.BAD_REQUEST, mensaje);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiErrorResponseDTO> handleCuerpoInvalido(HttpMessageNotReadableException ex) {
+        return construirRespuesta(HttpStatus.BAD_REQUEST, "El cuerpo de la solicitud tiene un dato con formato invalido");
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiErrorResponseDTO> handleParametroInvalido(MethodArgumentTypeMismatchException ex) {
+        return construirRespuesta(HttpStatus.BAD_REQUEST, "El parametro '" + ex.getName() + "' tiene un formato invalido");
     }
 
     @ExceptionHandler(Exception.class)
