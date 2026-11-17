@@ -33,7 +33,9 @@ export default function Operaciones() {
     setForm({ ...FORMULARIO_VACIO, minutosRetraso: String(viaje.minutosRetraso) });
     setMensaje("");
     setError("");
+    setTimeout(() => document.getElementById("form-retraso")?.scrollIntoView({ behavior: "smooth" }), 0);
   };
+
 
   const cambiar = (campo) => (e) =>
       setForm({ ...form, [campo]: e.target.type === "checkbox" ? e.target.checked : e.target.value });
@@ -110,7 +112,7 @@ export default function Operaciones() {
         </div>
 
         {elegido && (
-            <form className="bt-panel mt-4" onSubmit={guardar} noValidate>
+            <form id="form-retraso" className="bt-panel mt-4" onSubmit={guardar} noValidate>
               <div className="bt-panel-head">
                 <h2>Retraso de {elegido.ciudadOrigen} → {elegido.ciudadDestino}</h2>
                 <span className="bt-plate">{elegido.placa}</span>

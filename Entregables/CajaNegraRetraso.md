@@ -1,52 +1,73 @@
-# Caja negra: registrar el retraso de un viaje (HU 5.2)
+# Prueba de caja negra: registrar el retraso de un viaje
 
-Cosette Mañuico Jáuregui. Fecha de ejecución: 13/11/2026.
+**Responsable:** Alessandra Cosette Mañuico Jáuregui
+**Historia de usuario:** HU 5.2, aviso de retraso del viaje
+**Funcionalidad probada:** `PUT /api/admin/viajes/{id}/retraso` (pantalla Operaciones del administrador)
+**Técnicas:** partición equivalente y análisis de valores límite
+**Fecha de ejecución:** 16/11/2026, con `scripts/caja-negra-retraso.sh`
+**Resultado:** 20 de 20 casos con el resultado esperado
 
-**Se prueba:** `PUT /api/admin/viajes/{id}/retraso`, con cuerpo `{"minutosRetraso": n}`. El administrador
-registra cuántos minutos se atrasa la salida; con ese dato el flujo de n8n envía el aviso de retraso (HU 5.2).
+## 1. Datos de entrada (5)
 
-**Técnicas:** partición equivalente (dividir cada entrada en clases válidas y no válidas y elegir un caso por clase)
-y valores límite (probar justo en el borde permitido y el valor inmediatamente fuera).
+| # | Dato | Dónde viaja | Condición |
+|---|---|---|---|
+| 1 | `id` | URL | Número de un viaje que existe y que todavía no llega a su destino |
+| 2 | `minutosRetraso` | cuerpo JSON | Entero obligatorio de 0 a 720 (12 horas). Con 0 el viaje vuelve a su hora |
+| 3 | `motivo` | cuerpo JSON | Obligatorio: `TRAFICO`, `CLIMA`, `FALLA_MECANICA`, `ACCIDENTE` u `OTRO` |
+| 4 | `detalle` | cuerpo JSON | Texto obligatorio de 10 a 200 caracteres que se muestra al pasajero |
+| 5 | `avisarPasajeros` | cuerpo JSON | Booleano obligatorio: si es `true` y hay retraso, n8n envía el correo |
 
-## 1. Entradas y clases de equivalencia
+Precondición: sesión de **administrador** (`admin@bustracka.pe`).
 
-| Entrada | Clases válidas | Clases no válidas |
+## 2. Clases de equivalencia
+
+| Dato | Clases válidas | Clases no válidas |
 |---|---|---|
-| Sesión (token JWT) | (1) token de un administrador | (2) sin token; (3) token mal formado; (4) token de un pasajero |
-| `id` del viaje (ruta) | (5) viaje que existe y no ha terminado | (6) viaje que no existe; (7) viaje que ya terminó; (8) texto en vez de número |
-| `minutosRetraso` (cuerpo) | (9) entero entre 0 y 720 | (10) menor que 0; (11) mayor que 720; (12) ausente (null); (13) texto; (14) decimal |
+| `id` | (1) viaje existente y no finalizado | (2) no existe; (3) ya llegó a su destino; (4) no numérico |
+| `minutosRetraso` | (5) entero de 0 a 720 | (6) menor que 0; (7) mayor que 720; (8) nulo; (9) decimal; (10) texto |
+| `motivo` | (11) uno de los 5 valores | (12) nulo; (13) valor fuera de la lista |
+| `detalle` | (14) de 10 a 200 caracteres | (15) vacío o solo espacios; (16) menos de 10; (17) más de 200 |
+| `avisarPasajeros` | (18) `true` o `false` | (19) nulo; (20) no booleano |
 
-Valores límite de `minutosRetraso`: 0 y 720 (bordes válidos), -1 y 721 (justo afuera).
+## 3. Casos de prueba y resultados
 
-## 2. Casos de prueba y resultados
+Viaje 3 de `seed.sql` (sale mañana), viaje 10 (ya llegó). Cada caso no válido cambia un solo dato respecto al CP1.
 
-Datos de prueba: `seed.sql` (viaje 3 programado para mañana, viaje 10 ya terminado; usuarios
-`admin@bustracka.pe` y `cliente@bustracka.pe`). Se ejecutan con `scripts/caja-negra-retraso.sh`.
-
-| Caso | Sesión | id | Cuerpo | Clases | Esperado | Obtenido (antes de corregir) | Obtenido (después) |
-|---|---|---|---|---|---|---|---|
-| CP1 | admin | 3 | `30` | 1, 5, 9 | 200 y el viaje con 30 min de retraso | 200 | 200 |
-| CP2 | admin | 3 | `0` | 9 (límite inferior) | 200 | 200 | 200 |
-| CP3 | admin | 3 | `720` | 9 (límite superior) | 200 | 200 | 200 |
-| CP4 | admin | 3 | `-1` | 10 (límite) | 400 "no puede ser negativo" | 400 | 400 |
-| CP5 | admin | 3 | `721` | 11 (límite) | 400 "no puede superar 12 horas" | 400 | 400 |
-| CP6 | admin | 3 | `{}` | 12 | 400 "must not be null" | 400 | 400 |
-| CP7 | admin | 3 | `"abc"` | 13 | 400 formato inválido | **500 "Error inesperado"** | 400 |
-| CP8 | admin | 3 | `15.5` | 14 | 400 formato inválido | **200 y guarda 15** | 400 |
-| CP9 | admin | 999 | `30` | 6 | 404 "El viaje no existe" | 404 | 404 |
-| CP10 | admin | 10 | `30` | 7 | 400 "ya llegó a su destino" | 400 | 400 |
-| CP11 | admin | abc | `30` | 8 | 400 parámetro inválido | **500 "Error inesperado"** | 400 |
-| CP12 | pasajero | 3 | `30` | 4 | 403 solo administrador | 403 | 403 |
-| CP13 | sin token | 3 | `30` | 2 | 401 falta el token | 401 | 401 |
-| CP14 | `xxx.yyy.zzz` | 3 | `30` | 3 | 401 token inválido | 401 | 401 |
-
-Cada caso no válido cubre una sola clase no válida y deja las demás entradas válidas, para saber exactamente qué causó el error.
-
-## 3. Defectos encontrados
-
-| ID | Defecto | Causa | Corrección | Estado |
+| CP | Datos (lo que cambia respecto al CP1) | Clases | Esperado | Obtenido |
 |---|---|---|---|---|
-| D-05 | Un dato con tipo equivocado (CP7 `"abc"`, CP11 id `abc`) devolvía 500 en vez de 400 | `GlobalExceptionHandler` no manejaba `HttpMessageNotReadableException` ni `MethodArgumentTypeMismatchException`; caían en el manejador genérico de `Exception` | Se agregaron los dos manejadores, que responden 400 con un mensaje claro | Cerrado |
-| D-06 | Un decimal (CP8 `15.5`) se aceptaba y se guardaba truncado como 15 minutos | Jackson convierte decimales a entero por defecto | `spring.jackson.deserialization.accept-float-as-int=false` en `application.properties` | Cerrado |
+| 1 | id 3, 30 min, `TRAFICO`, "Congestion en la Panamericana Sur", `true` | (1)(5)(11)(14)(18) | 200, retraso guardado | 200 (pasa) |
+| 2 | 0 min, `CLIMA`, detalle de 10 caracteres, `false` | límites inferiores | 200, vuelve a su hora, sin correo | 200 (pasa) |
+| 3 | 720 min, `OTRO`, detalle de 200 caracteres | límites superiores | 200 | 200 (pasa) |
+| 4 | id 999 | (2) | 404 El viaje no existe | 404 (pasa) |
+| 5 | id 10 | (3) | 400 ya llegó a su destino | 400 (pasa) |
+| 6 | id `abc` | (4) | 400 parámetro con formato inválido | 400 (pasa) |
+| 7 | -1 min | (6) | 400 no puede ser negativo | 400 (pasa) |
+| 8 | 721 min | (7) | 400 no puede superar 12 horas | 400 (pasa) |
+| 9 | minutos nulo | (8) | 400 es obligatorio | 400 (pasa) |
+| 10 | 15.5 min | (9) | 400 formato inválido | 400 (pasa) |
+| 11 | `"abc"` en minutos | (10) | 400 formato inválido | 400 (pasa) |
+| 12 | motivo nulo | (12) | 400 motivo es obligatorio | 400 (pasa) |
+| 13 | motivo `LLUVIA` | (13) | 400 formato inválido | 400 (pasa) |
+| 14 | detalle de solo espacios | (15) | 400 detalle es obligatorio | 400 (pasa) |
+| 15 | detalle de 9 caracteres | (16) | 400 entre 10 y 200 caracteres | 400 (pasa) |
+| 16 | detalle de 201 caracteres | (17) | 400 entre 10 y 200 caracteres | 400 (pasa) |
+| 17 | avisarPasajeros nulo | (19) | 400 es obligatorio | 400 (pasa) |
+| 18 | avisarPasajeros `"si"` | (20) | 400 formato inválido | 400 (pasa) |
+| 19 | sesión de pasajero | precondición | 403 solo administrador | 403 (pasa) |
+| 20 | sin token | precondición | 401 falta el token | 401 (pasa) |
 
-Después de la corrección, los 14 casos dan el resultado esperado y `mvn test` sigue en verde (52 pruebas).
+## 4. Valores límite
+
+| Dato | Fuera (abajo) | Borde inferior | Borde superior | Fuera (arriba) |
+|---|---|---|---|---|
+| `minutosRetraso` (0 a 720) | -1 → CP7 | 0 → CP2 | 720 → CP3 | 721 → CP8 |
+| `detalle` (10 a 200 caracteres) | 9 → CP15 | 10 → CP2 | 200 → CP3 | 201 → CP16 |
+
+## 5. Defectos encontrados en la primera ejecución (13/11/2026)
+
+| ID | Caso | Problema | Corrección |
+|---|---|---|---|
+| D-05 | `"abc"` en minutos o en el id | Respondía 500 en vez de 400 | `GlobalExceptionHandler` maneja `HttpMessageNotReadableException` y `MethodArgumentTypeMismatchException` |
+| D-06 | 15.5 minutos | Se guardaba truncado como 15 | `spring.jackson.deserialization.accept-float-as-int=false` |
+
+Con esas correcciones, los 20 casos de la versión de 5 entradas pasan (ver `img/caja-negra-retraso.png`).
