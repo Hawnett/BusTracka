@@ -1,0 +1,19 @@
+# {$DOMINIO} viene del .env (ej: 203.0.113.10.sslip.io). Caddy obtiene el HTTPS solo.
+{$DOMINIO} {
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy backend:8080
+	}
+
+	# Buzon de correos de prueba (Mailpit) en /mailpit/
+	handle /mailpit* {
+		reverse_proxy mailpit:8025
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

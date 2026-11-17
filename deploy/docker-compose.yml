@@ -1,0 +1,69 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bustracka_db
+      POSTGRES_USER: bustracka_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      TZ: America/Lima
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../backend/src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ../backend/src/main/resources/db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+
+  mailpit:
+    image: axllent/mailpit
+    restart: unless-stopped
+    environment:
+      MP_WEBROOT: /mailpit/
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    restart: unless-stopped
+    environment:
+      GENERIC_TIMEZONE: America/Lima
+      TZ: America/Lima
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n-import:/import:ro
+    depends_on:
+      - postgres
+      - mailpit
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/bustracka_db
+      DB_USUARIO: bustracka_user
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      FRONTEND_URL: https://${DOMINIO}
+      CORS_ORIGINS: https://${DOMINIO}
+      NOTIFICACION_WEBHOOK_URL: http://n8n:5678/webhook/comprobante
+    depends_on:
+      - postgres
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    restart: unless-stopped
+    environment:
+      DOMINIO: ${DOMINIO}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+    depends_on:
+      - backend
+      - mailpit
+
+volumes:
+  pgdata:
+  n8n_data:
+  caddy_data:
