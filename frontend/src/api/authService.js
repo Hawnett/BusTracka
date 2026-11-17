@@ -73,9 +73,9 @@ export async function login({ email, contrasena }) {
   }
 }
 
-export async function register({ nombreUsuario, email, contrasena }) {
+export async function register({ nombreUsuario, email, contrasena, confirmarContrasena, celular }) {
   try {
-    const { data } = await api.post("/auth/register", { nombreUsuario, email, contrasena });
+    const { data } = await api.post("/auth/register", { nombreUsuario, email, contrasena, confirmarContrasena, celular });
     return data;
   } catch (error) {
     throw new Error(extraerMensajeError(error));
