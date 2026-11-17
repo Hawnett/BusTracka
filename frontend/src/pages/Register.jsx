@@ -12,7 +12,7 @@ import Campo from "../components/Campo";
  * automaticamente al usuario apenas se crea la cuenta.
  */
 export default function Register() {
-  const [form, setForm] = useState({ nombreUsuario: "", email: "", contrasena: "", confirmarContrasena: "" });
+  const [form, setForm] = useState({ nombreUsuario: "", email: "", contrasena: "", confirmarContrasena: "", celular: "" });
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
   const { iniciarSesion } = useAuth();
@@ -39,6 +39,8 @@ export default function Register() {
         nombreUsuario: form.nombreUsuario,
         email: form.email,
         contrasena: form.contrasena,
+        confirmarContrasena: form.confirmarContrasena,
+        celular: form.celular.trim(),
       });
       iniciarSesion(respuesta);
       navigate("/", { replace: true });
@@ -50,33 +52,36 @@ export default function Register() {
   }
 
   return (
-    <AuthLayout
-      anden="12"
-      eyebrow="Crear cuenta"
-      titulo="Tu próximo viaje empieza aquí"
-      subtitulo="Regístrate en segundos y guarda tus boletos en un solo lugar."
-      pie={
-        <>
-          ¿Ya tienes cuenta? <Link to="/login" className="bt-link">Inicia sesión</Link>
-        </>
-      }
-    >
-      <Alerta tipo="error">{error}</Alerta>
+      <AuthLayout
+          anden="12"
+          eyebrow="Crear cuenta"
+          titulo="Tu próximo viaje empieza aquí"
+          subtitulo="Regístrate en segundos y guarda tus boletos en un solo lugar."
+          pie={
+            <>
+              ¿Ya tienes cuenta? <Link to="/login" className="bt-link">Inicia sesión</Link>
+            </>
+          }
+      >
+        <Alerta tipo="error">{error}</Alerta>
 
-      <form onSubmit={handleSubmit} noValidate className="d-grid gap-3">
-        <Campo id="nombreUsuario" name="nombreUsuario" etiqueta="Nombre de usuario" icono="bi-person"
-               placeholder="Ej. mariaquispe" autoComplete="username" value={form.nombreUsuario} onChange={handleChange} required />
-        <Campo id="email" name="email" type="email" etiqueta="Correo electrónico" icono="bi-envelope"
-               placeholder="nombre@correo.com" autoComplete="email" value={form.email} onChange={handleChange} required />
-        <Campo id="contrasena" name="contrasena" type="password" etiqueta="Contraseña" icono="bi-lock"
-               placeholder="Mínimo 8 caracteres" autoComplete="new-password" value={form.contrasena} onChange={handleChange} required />
-        <Campo id="confirmarContrasena" name="confirmarContrasena" type="password" etiqueta="Confirmar contraseña" icono="bi-lock-fill"
-               placeholder="Repite tu contraseña" autoComplete="new-password" value={form.confirmarContrasena} onChange={handleChange} required />
-        <button type="submit" className="bt-btn bt-btn-primary w-100 mt-2" disabled={cargando}>
-          {cargando ? "Creando cuenta…" : "Crear cuenta"}
-          <i className="bi bi-arrow-right" aria-hidden="true"></i>
-        </button>
-      </form>
-    </AuthLayout>
+        <form onSubmit={handleSubmit} noValidate className="d-grid gap-3">
+          <Campo id="nombreUsuario" name="nombreUsuario" etiqueta="Nombre de usuario" icono="bi-person"
+                 placeholder="Ej. mariaquispe" autoComplete="username" value={form.nombreUsuario} onChange={handleChange} required />
+          <Campo id="email" name="email" type="email" etiqueta="Correo electrónico" icono="bi-envelope"
+                 placeholder="nombre@correo.com" autoComplete="email" value={form.email} onChange={handleChange} required />
+          <Campo id="contrasena" name="contrasena" type="password" etiqueta="Contraseña" icono="bi-lock"
+                 placeholder="Mínimo 8 caracteres" autoComplete="new-password" value={form.contrasena} onChange={handleChange} required />
+          <Campo id="confirmarContrasena" name="confirmarContrasena" type="password" etiqueta="Confirmar contraseña" icono="bi-lock-fill"
+                 placeholder="Repite tu contraseña" autoComplete="new-password" value={form.confirmarContrasena} onChange={handleChange} required />
+          <Campo id="celular" name="celular" type="tel" etiqueta="Celular" icono="bi-phone"
+                 placeholder="Ej. 987654321" autoComplete="tel" inputMode="numeric" maxLength={9}
+                 value={form.celular} onChange={handleChange} required />
+          <button type="submit" className="bt-btn bt-btn-primary w-100 mt-2" disabled={cargando}>
+            {cargando ? "Creando cuenta…" : "Crear cuenta"}
+            <i className="bi bi-arrow-right" aria-hidden="true"></i>
+          </button>
+        </form>
+      </AuthLayout>
   );
 }

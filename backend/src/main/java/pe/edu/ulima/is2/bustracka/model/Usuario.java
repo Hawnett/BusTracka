@@ -14,6 +14,7 @@ public class Usuario {
     private String email;
     private String estado;     // "ACTIVO" | "INACTIVO"
     private Integer idRol;
+    private String celular;
     private LocalDateTime fechaCreacion;
 
     public Usuario() {
@@ -89,4 +90,8 @@ public class Usuario {
     public boolean isActivo() {
         return "ACTIVO".equalsIgnoreCase(estado);
     }
+
+    public String getCelular() { return celular; }
+
+    public void setCelular(String celular) { this.celular = celular;}
 }
