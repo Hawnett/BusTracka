@@ -10,6 +10,7 @@ import pe.edu.ulima.is2.bustracka.dto.ViajeResponseDTO;
 import pe.edu.ulima.is2.bustracka.exception.RecursoNoEncontradoException;
 import pe.edu.ulima.is2.bustracka.exception.ReglaNegocioException;
 import pe.edu.ulima.is2.bustracka.model.EstadoViaje;
+import pe.edu.ulima.is2.bustracka.model.FranjaHoraria;
 import pe.edu.ulima.is2.bustracka.model.Viaje;
 import pe.edu.ulima.is2.bustracka.service.ViajeService;
 import pe.edu.ulima.is2.bustracka.util.ZonaApp;
@@ -20,12 +21,25 @@ import java.util.List;
 @Service
 public class ViajeServiceImpl implements ViajeService {
 
+    private static final int MAX_PASAJEROS_POR_BUSQUEDA = 6;
+
     private final ViajeDao viajeDao = DaoFactory.crearViajeDao();
     private final AsientoDao asientoDao = DaoFactory.crearAsientoDao();
 
     @Override
-    public List<ViajeResponseDTO> buscarViajes(Long idTerminalOrigen, Long idTerminalDestino, LocalDate fecha) {
-        return viajeDao.buscar(idTerminalOrigen, idTerminalDestino, fecha).stream().map(this::aDto).toList();
+    public List<ViajeResponseDTO> buscarViajes(Long idTerminalOrigen, Long idTerminalDestino, LocalDate fecha,
+                                               Integer pasajeros, FranjaHoraria franja) {
+        int cantidad = pasajeros == null ? 1 : pasajeros;
+        if (cantidad < 1 || cantidad > MAX_PASAJEROS_POR_BUSQUEDA) {
+            throw new ReglaNegocioException("La cantidad de pasajeros debe estar entre 1 y " + MAX_PASAJEROS_POR_BUSQUEDA);
+        }
+        if (idTerminalOrigen != null && idTerminalOrigen.equals(idTerminalDestino)) {
+            throw new ReglaNegocioException("El origen y el destino deben ser distintos");
+        }
+        if (fecha != null && fecha.isBefore(ZonaApp.ahora().toLocalDate())) {
+            throw new ReglaNegocioException("La fecha de viaje no puede ser anterior a hoy");
+        }
+        return viajeDao.buscar(idTerminalOrigen, idTerminalDestino, fecha, cantidad, franja).stream().map(this::aDto).toList();
     }
 
     @Override

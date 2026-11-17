@@ -3,13 +3,14 @@ package pe.edu.ulima.is2.bustracka.service;
 import pe.edu.ulima.is2.bustracka.dto.AsientoResponseDTO;
 import pe.edu.ulima.is2.bustracka.dto.RetrasoRequestDTO;
 import pe.edu.ulima.is2.bustracka.dto.ViajeResponseDTO;
-
+import pe.edu.ulima.is2.bustracka.model.FranjaHoraria;
 
 import java.time.LocalDate;
 import java.util.List;
 
 public interface ViajeService {
-    List<ViajeResponseDTO> buscarViajes(Long idTerminalOrigen, Long idTerminalDestino, LocalDate fecha);
+    List<ViajeResponseDTO> buscarViajes(Long idTerminalOrigen, Long idTerminalDestino, LocalDate fecha,
+                                        Integer pasajeros, FranjaHoraria franja);
 
     List<ViajeResponseDTO> listarViajesEnCurso();
 

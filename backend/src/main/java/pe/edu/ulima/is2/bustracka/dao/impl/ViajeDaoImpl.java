@@ -3,6 +3,7 @@ package pe.edu.ulima.is2.bustracka.dao.impl;
 import pe.edu.ulima.is2.bustracka.config.ConexionDB;
 import pe.edu.ulima.is2.bustracka.dao.ViajeDao;
 import pe.edu.ulima.is2.bustracka.exception.PersistenciaException;
+import pe.edu.ulima.is2.bustracka.model.FranjaHoraria;
 import pe.edu.ulima.is2.bustracka.model.Viaje;
 
 import java.sql.Connection;
@@ -24,19 +25,19 @@ public class ViajeDaoImpl implements ViajeDao {
 
     private static final String SQL_BASE =
             "SELECT v.id_viaje, v.id_ruta, v.id_bus, b.placa, v.fecha_salida, v.minutos_retraso, v.precio, r.duracion_min, " +
-            "r.id_terminal_origen, t1.nombre AS terminal_origen, t1.ciudad AS ciudad_origen, " +
-            "r.id_terminal_destino, t2.nombre AS terminal_destino, t2.ciudad AS ciudad_destino, b.capacidad, " +
-            "b.capacidad - (SELECT COUNT(*) FROM detalle_venta dv WHERE dv.id_viaje = v.id_viaje) AS disponibles " +
-            "FROM viaje v " +
-            "JOIN ruta r ON r.id_ruta = v.id_ruta " +
-            "JOIN bus b ON b.id_bus = v.id_bus " +
-            "JOIN terminal t1 ON t1.id_terminal = r.id_terminal_origen " +
+                    "r.id_terminal_origen, t1.nombre AS terminal_origen, t1.ciudad AS ciudad_origen, " +
+                    "r.id_terminal_destino, t2.nombre AS terminal_destino, t2.ciudad AS ciudad_destino, b.capacidad, " +
+                    "b.capacidad - (SELECT COUNT(*) FROM detalle_venta dv WHERE dv.id_viaje = v.id_viaje) AS disponibles " +
+                    "FROM viaje v " +
+                    "JOIN ruta r ON r.id_ruta = v.id_ruta " +
+                    "JOIN bus b ON b.id_bus = v.id_bus " +
+                    "JOIN terminal t1 ON t1.id_terminal = r.id_terminal_origen " +
                     "JOIN terminal t2 ON t2.id_terminal = r.id_terminal_destino ";
 
     private static final String SQL_RETRASO = "UPDATE viaje SET minutos_retraso = ?, motivo_retraso = ?, detalle_retraso = ?, avisar_pasajeros = ? WHERE id_viaje = ?";
 
     @Override
-    public List<Viaje> buscar(Long idTerminalOrigen, Long idTerminalDestino, LocalDate fecha) {
+    public List<Viaje> buscar(Long idTerminalOrigen, Long idTerminalDestino, LocalDate fecha, int pasajeros, FranjaHoraria franja) {
         // SQL dinamico: solo se agregan los filtros que el usuario envio.
         StringBuilder sql = new StringBuilder(SQL_BASE).append("WHERE " + SALIDA_ESTIMADA + " > " + AHORA + " ");
         List<Object> params = new ArrayList<>();
@@ -53,6 +54,13 @@ public class ViajeDaoImpl implements ViajeDao {
             params.add(Timestamp.valueOf(fecha.atStartOfDay()));
             params.add(Timestamp.valueOf(fecha.plusDays(1).atStartOfDay()));
         }
+        if (franja != null) {
+            sql.append("AND EXTRACT(HOUR FROM v.fecha_salida) >= ? AND EXTRACT(HOUR FROM v.fecha_salida) < ? ");
+            params.add(franja.getHoraDesde());
+            params.add(franja.getHoraHasta());
+        }
+        sql.append("AND b.capacidad - (SELECT COUNT(*) FROM detalle_venta dv WHERE dv.id_viaje = v.id_viaje) >= ? ");
+        params.add(pasajeros);
         sql.append("ORDER BY v.fecha_salida");
         return consultar(sql.toString(), params);
     }
@@ -73,7 +81,6 @@ public class ViajeDaoImpl implements ViajeDao {
         List<Viaje> res = consultar(SQL_BASE + "WHERE v.id_viaje = ?", List.of(idViaje));
         return res.isEmpty() ? Optional.empty() : Optional.of(res.get(0));
     }
-
 
     @Override
     public void actualizarRetraso(Long idViaje, int minutosRetraso, String motivo, String detalle, boolean avisarPasajeros) {
