@@ -360,3 +360,118 @@ vacío de `MisCompras.jsx:48-57` y parecerá que no funciona.
 
 También puedes abrir `/api/viajes` directamente en el navegador: responde **401** porque falta el
 token (`JwtAuthFilter`). Es el CP18 de tu caja negra, demostrado en 5 segundos y sin terminal.
+
+---
+
+## 9. Cómo se almacena un viaje en el backend (para las HU 2.1 a 2.3)
+
+### 9.1 La idea en una frase
+
+> "Un viaje **no guarda** la ruta, ni los asientos, ni cuántos quedan libres, ni su estado.
+> Solo guarda **qué bus**, **por qué ruta**, **cuándo sale**, **a qué precio** y **cuánto se retrasó**.
+> Todo lo demás se **deriva**: por JOIN con las otras tablas o por cálculo en el modelo."
+
+### 9.2 Las 6 tablas que sostienen tus 3 historias
+
+| Tabla | `schema.sql` | Qué guarda | Qué HU tuya depende de ella |
+|---|---|---|---|
+| `terminal` | **32-39** | nombre, ciudad, dirección y lat/lng de cada terminal | 2.1 (los combos de origen y destino) y 3.3 |
+| `ruta` | **41-46** | terminal de origen, terminal de destino y `duracion_min` | 2.1 (el filtro) y 2.2 (la llegada estimada) |
+| `ruta_punto` | **49-57** | los puntos lat/lng del recorrido, con `UNIQUE (id_ruta, orden)` | 3.2 (la línea del mapa) |
+| `bus` | **59-62** | `placa` y `capacidad` | **2.3** (placa y capacidad) |
+| `asiento` | **64-68** | los asientos físicos del bus, `UNIQUE (id_bus, numero)` | **2.3** (el plano) |
+| `viaje` | **70-84** | la salida concreta de un bus por una ruta | **2.1, 2.2, 2.3** |
+
+Relación en una línea: **un `bus` tiene muchos `asiento`; una `ruta` tiene muchos `ruta_punto`;
+un `viaje` es "este bus, por esta ruta, este día a esta hora".**
+
+### 9.3 La tabla `viaje`, columna por columna
+
+| Columna | Línea | Para qué sirve en tu exposición |
+|---|---|---|
+| `id_viaje` | 71 | clave primaria |
+| `id_ruta` | 72 | FK a `ruta`: de aquí salen origen, destino y duración |
+| `id_bus` | 73 | FK a `bus`: de aquí salen placa y capacidad (**HU 2.3**) |
+| `fecha_salida` | 74 | `TIMESTAMP` **sin zona**: se guarda en hora de Lima (ver 9.6) |
+| `precio` | 75 | `NUMERIC(8,2)`. Está en el viaje y **no** en la ruta, para poder cobrar distinto según el horario |
+| `minutos_retraso` | 76 | lo escribe el administrador (HU 5.2) y **corre toda la HU 2.2** |
+| `motivo_retraso`, `detalle_retraso`, `avisar_pasajeros` | 77-79 | datos del aviso por correo (HU 5.2) |
+| `idx_viaje_fecha` | 84 | índice sobre `fecha_salida`, porque **toda** búsqueda ordena y filtra por esa columna |
+
+### 9.4 Lo que **no** está guardado y se calcula — tu mejor argumento de diseño
+
+| Dato que ve el usuario | No existe como columna; se calcula en | Cómo |
+|---|---|---|
+| "19 asientos libres" (**HU 2.3**) | `ViajeDaoImpl.java:30` | `b.capacidad - (SELECT COUNT(*) FROM detalle_venta WHERE id_viaje = v.id_viaje)` |
+| Asiento libre / ocupado en el plano (**HU 2.3**) | `AsientoDaoImpl.java:19` | `EXISTS (SELECT 1 FROM detalle_venta ...)` por asiento |
+| Hora de salida real (**HU 2.2**) | SQL `ViajeDaoImpl.java:23` y Java `Viaje.java:13` | `fecha_salida + minutos_retraso` |
+| Hora de llegada estimada (**HU 2.2**) | `Viaje.java:17` | `salidaEstimada() + duracion_min` |
+| Estado: "Aún no sale / En ruta / Llegó" | `Viaje.java:21-29` | compara la hora actual contra salida y llegada estimadas |
+
+Frase para decir en voz alta:
+
+> "No hay columna `asientos_disponibles` ni columna `estado`. Si existieran, habría que mantenerlas
+> sincronizadas con cada venta y con el paso del tiempo, y se podrían desfasar. Al derivarlas, **el dato
+> siempre es correcto por construcción**: la única fuente de verdad son `detalle_venta` y el reloj."
+
+Esto además explica por qué el retraso que registra el administrador aparece **al instante** en mi
+pantalla de búsqueda sin tocar una sola línea del frontend.
+
+### 9.5 El viaje de un dato: de la fila de PostgreSQL hasta tu tarjeta
+
+| # | Dónde | Qué pasa |
+|---|---|---|
+| 1 | `config/ConexionDB.java:49` | **Singleton** con *double-checked locking* entrega una conexión del pool HikariCP (máx. 10, línea 41) |
+| 2 | `dao/DaoFactory.java:33` | **Factory**: el service pide `crearViajeDao()` y solo conoce la **interfaz** `ViajeDao` (DIP) |
+| 3 | `dao/impl/ViajeDaoImpl.java:100` | `consultar()` abre la conexión en *try-with-resources* (vuelve al pool al cerrarse) y usa `PreparedStatement` con `?` → **sin concatenar parámetros, sin inyección SQL** |
+| 4 | `dao/impl/ViajeDaoImpl.java:118` | `mapearFila()` convierte cada fila del `ResultSet` en un `record Viaje` |
+| 5 | `model/Viaje.java:7` | el `record` inmutable, con los cálculos de 9.4 como métodos |
+| 6 | `service/impl/ViajeServiceImpl.java:85` | `aDto()` convierte `Viaje` → `ViajeResponseDTO`, **agregando ya calculados** `salidaEstimada`, `llegadaEstimada` y `estado` (líneas 89-90) |
+| 7 | `dto/ViajeResponseDTO.java:6` | el **DTO**: lo único que cruza por HTTP. El modelo `Viaje` nunca sale de la API |
+| 8 | `components/TarjetaViaje.jsx` | tu componente solo pinta campos ya listos; no hace ninguna cuenta de horas |
+
+Si te preguntan **dónde está el ORM**: no hay. Es **JDBC a mano con patrón DAO**, decisión documentada
+en la Tabla 65 del informe (*"requisito del curso de aplicar patrones de diseño explícitos y control
+fino de las consultas; costo: más código repetitivo"*).
+
+Si algo falla en la base, no sube un `SQLException` crudo: se envuelve en `PersistenciaException`
+(`ViajeDaoImpl.java:114`) y el manejador global la traduce a un 500 con mensaje genérico
+(`GlobalExceptionHandler.java:62-66`) — **nunca se filtra el detalle de la BD al navegador**.
+
+### 9.6 El detalle de la hora (te lo pueden preguntar y casi nadie lo sabe)
+
+`fecha_salida` es `TIMESTAMP` **sin zona horaria**, y se guarda en hora de Lima. Por eso:
+
+- en SQL se compara contra `(now() AT TIME ZONE 'America/Lima')` — constante `AHORA`, `ViajeDaoImpl.java:22`;
+- en Java se compara contra `ZonaApp.ahora()` (`util/ZonaApp.java:13`), que es `LocalDateTime.now(America/Lima)`;
+- **tu regla de "fecha no anterior a hoy" usa esa misma hora** (`ViajeServiceImpl.java:39`). Si usara la
+  hora del servidor en UTC, el CP10 de tu caja negra fallaría cerca de la medianoche.
+
+### 9.7 Los datos de ejemplo con los que corriste la caja negra
+
+`seed.sql:48-56` crea los viajes con **fechas relativas a `now()`**, no fijas:
+
+| Viaje | Línea | Qué es |
+|---|---|---|
+| 3 | **51** | Lima → Ica, **mañana 08:00** (bus ABC-123, S/ 45.00) → tu **CP1** |
+| 4 | **52** | Lima → Ica, **mañana 20:00** → tu **CP2** (franja NOCHE) y **CP5** (sin franja: salen los dos) |
+| 1 y 2 | 49-50 | salieron hace poco: sirven para ver el bus moviéndose en el mapa (HU 3.1) |
+
+Por eso tu caja negra es **repetible cualquier día**: no depende de una fecha quemada. Dilo, es un punto
+de calidad de la prueba.
+
+### 9.8 Preguntas probables sobre el almacenamiento
+
+| Pregunta | Respuesta |
+|---|---|
+| "¿Por qué `duracion_min` está en `ruta` y no en `viaje`?" | "Porque la duración es una característica del trayecto, no de la salida; así no se repite en cada viaje de la misma ruta. Lima→Ica son 240 minutos (`seed.sql:20`) y eso vale para los 4 viajes de esa ruta." |
+| "¿Y si dos personas compran el mismo asiento a la vez?" | "La aplicación valida en `VentaServiceImpl.java:191`, pero la garantía real es `UNIQUE (id_viaje, id_asiento)` en `schema.sql:105`: la segunda inserción falla en la base de datos y el service anula el cobro (`:126`). La validación en código evita el caso común; la restricción cubre la carrera." |
+| "¿Por qué el asiento no tiene columna `ocupado`?" | "Porque un asiento es del **bus**, no del viaje: el asiento 7 existe una vez y se vende muchas veces, una por viaje. Lo que ocupa es la fila en `detalle_venta` (viaje + asiento)." |
+| "¿Guardan la tarjeta?" | "No. Solo los 4 últimos dígitos (`schema.sql:93`, `tarjeta_ultimos4`), y la contraseña es hash BCrypt (`schema.sql:16`)." |
+| "¿Por qué `ruta_punto` tiene `orden`?" | "Porque la geometría del recorrido es una secuencia; `UNIQUE (id_ruta, orden)` (`schema.sql:56`) impide dos puntos en la misma posición y garantiza que la línea del mapa se dibuje bien." |
+
+**Limitación que conviene reconocer si te aprietan:** la cuenta de asientos disponibles no filtra por
+el estado de la venta, así que un asiento de una venta ANULADA seguiría contando como ocupado
+(`ViajeDaoImpl.java:30`). En la práctica no afecta a la demo porque la búsqueda solo devuelve viajes
+futuros y la única venta anulada del `seed.sql` es de un viaje pasado, pero es una mejora honesta
+que puedes ofrecer: agregar `JOIN venta ... WHERE venta.estado = 'PAGADA'` a la subconsulta.
