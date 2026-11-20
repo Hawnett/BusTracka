@@ -298,3 +298,65 @@ poner fecha de ayer y mostrar el mensaje de error (es tu CP10) → "Ver detalle 
   UNIQUE en la base de datos.
 - No digas que el correo o el GPS son reales (n8n + Mailpit y simulador).
 - No inventes un número de V(G): el tuyo es **8** (el de 9 es el de Reaid, el filtro JWT).
+
+---
+
+## 8. Recorrido de la app desplegada, pantalla por pantalla
+
+En el VPS, Caddy sirve tres cosas en el mismo dominio (`deploy/Caddyfile`):
+
+| URL | Qué responde |
+|---|---|
+| `/` y cualquier otra ruta | el frontend React (`try_files {path} /index.html`, por eso las rutas del router funcionan al recargar) |
+| `/api/*` | `reverse_proxy backend:8080` (el backend Java) |
+| `/mailpit/` | el buzón de correos de prueba — **ábrelo en la exposición**: es la evidencia visual de las HU 4.4, 5.1, 5.2 y 5.3 |
+
+### Antes de la demo: con qué usuario entrar
+
+| Usuario | Para qué sirve | Qué NO verás |
+|---|---|---|
+| `admin@bustracka.pe` / `Admin1234` | aparece el ítem **05 Operaciones** en la barra (`Navbar.jsx:11,14`) y entra a `/operaciones` | **no tiene compras** (`seed.sql:64-72` solo crea compras para el cliente), así que "Mis compras" sale vacío |
+| `cliente@bustracka.pe` / `Cliente1234` | tiene 4 compras, una por cada estado (próximo, en curso, completado, cancelado) | no ve Operaciones |
+
+**Consecuencia para tu exposición:** entra como **cliente** para las HU 4.x, 6.x y 7.x, y cambia a
+**admin** solo para la HU 5.2 / 8.3. Si demuestras el historial con el admin te va a salir el estado
+vacío de `MisCompras.jsx:48-57` y parecerá que no funciona.
+
+### Mapa pantalla → código → HU
+
+| Lo que ves en el navegador | URL | Archivo que lo dibuja | HU |
+|---|---|---|---|
+| Formulario de ingreso | `/login` | `pages/Login.jsx` (layout en `components/AuthLayout.jsx`) | 1.2 |
+| "Crear cuenta" | `/registro` | `pages/Register.jsx` | 1.1 |
+| "¿La olvidaste?" → pedir enlace | `/recuperar` | `pages/RecoverPassword.jsx:38` (`FormularioSolicitarEnlace`) | 1.3 |
+| El enlace del correo → nueva contraseña | `/recuperar?token=...` | `pages/RecoverPassword.jsx:86` (`FormularioNuevaContrasena`) — **misma ruta, otro formulario**, decidido en la línea 17 | 1.3 |
+| Panel de salidas + buscador de 5 filtros | `/` | `pages/BuscarViajes.jsx` | **2.1, 2.2, 2.3** |
+| Cada tarjeta de resultado (placa, llegada, asientos libres, insignia de retraso) | `/` | `components/TarjetaViaje.jsx` | 2.2, 2.3 |
+| "Ver detalle y mapa" | `/viajes/:id/detalle` | `pages/DetalleViaje.jsx` + `MapaSeguimiento.jsx` + `ParadasViaje.jsx` | 3.2 |
+| Plano del bus en 3 pasos + pago | `/viajes/:id` | `pages/Compra.jsx` + `components/MapaAsientos.jsx` | 4.1, 4.2 |
+| Boleto con QR y sello | `/comprobante/:id` | `pages/Comprobante.jsx` (QR en la línea 133) | 4.3, 6.2 |
+| La página a la que lleva el QR si lo escaneas | `/boleto/:codigo` | `pages/BoletoPublico.jsx` — **sin sesión**, dice Válido / No válido | 4.3 |
+| Historial con pestañas y buscador | `/compras` | `pages/MisCompras.jsx` | 6.1 |
+| Detalle de una compra | `/compras/:id` | `pages/DetalleCompra.jsx` (el "Horario original" tachado es la línea 46-51) | 6.3 |
+| "Compartir viaje": enlace, QR, WhatsApp / correo / SMS | `/compras/:id/compartir` | `pages/CompartirViaje.jsx` | 7.1, 7.2 |
+| El enlace compartido, abierto en incógnito | `/seguimiento/:token` | `pages/SeguimientoPublico.jsx` (el 410 → "Enlace inválido", línea 20 y 38-43) | **7.3** |
+| Mapa en vivo con progreso, velocidad y paradas | `/seguimiento` | `pages/Seguimiento.jsx` → `VistaSeguimiento.jsx` → `MapaSeguimiento.jsx` + `PanelSeguimiento.jsx` | 3.1, 3.2 |
+| Lista y mapa de terminales | `/terminales` | `pages/Terminales.jsx` + `MapaTerminales.jsx` | 3.3 |
+| Tabla de viajes + formulario de retraso (solo admin) | `/operaciones` | `pages/Operaciones.jsx`, protegida por `routes/RutaAdmin.jsx:9` | 5.2, 8.3 |
+| El correo del retraso que llega al pasajero | `/mailpit/` | lo manda el flujo de n8n `backend/n8n/Notificaciones de viaje.json` | 5.2 |
+
+### Tres cosas que puedes demostrar en vivo en la URL desplegada
+
+1. **Que el filtro de fecha pasada lo rechaza el servidor, no la pantalla** (es tu CP10): pon una fecha
+   anterior a hoy y aparece el mensaje del backend. El texto exacto sale de
+   `ViajeServiceImpl.java:40` y viaja hasta la pantalla por `authService.js:45`
+   (`extraerMensajeError`) → `BuscarViajes.jsx:147-152`.
+2. **Que el retraso del admin se propaga a todo**: en `/operaciones` ponle 30 minutos a un viaje
+   programado, vuelve a `/` y la misma tarjeta ya muestra la insignia "Retraso 30 min" y la hora
+   corrida. Eso pasa porque la salida estimada se calcula en SQL (`ViajeDaoImpl.java:23`) y en el
+   modelo (`Viaje.java:13`), no en el frontend.
+3. **Que el enlace compartido no necesita sesión**: copia el enlace de `/compras/:id/compartir`,
+   ábrelo en una ventana de incógnito y se ve el mapa. Es el criterio de aceptación de la HU 7.3.
+
+También puedes abrir `/api/viajes` directamente en el navegador: responde **401** porque falta el
+token (`JwtAuthFilter`). Es el CP18 de tu caja negra, demostrado en 5 segundos y sin terminal.
