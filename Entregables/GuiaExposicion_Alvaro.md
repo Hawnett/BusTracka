@@ -475,3 +475,178 @@ el estado de la venta, así que un asiento de una venta ANULADA seguiría contan
 (`ViajeDaoImpl.java:30`). En la práctica no afecta a la demo porque la búsqueda solo devuelve viajes
 futuros y la única venta anulada del `seed.sql` es de un viaje pasado, pero es una mejora honesta
 que puedes ofrecer: agregar `JOIN venta ... WHERE venta.estado = 'PAGADA'` a la subconsulta.
+
+---
+
+## 10. HU 7.1 y 7.3 — Compartir el seguimiento (Release 2, Sprint 4)
+
+### 10.1 Los dos criterios de aceptación (Tabla 63 del informe)
+
+| HU | Criterio de aceptación | Dónde se cumple |
+|---|---|---|
+| 7.1 | Genera un **enlace único** con **vigencia** para un **viaje activo** | `EnlaceSeguimientoServiceImpl.java:124` (único), `:115-122` (vigencia), `:80-82` (viaje activo) |
+| 7.3 | Con enlace válido y **sin sesión** se ve el recorrido y la ubicación del bus; un enlace **vencido o revocado responde 410** | `JwtAuthFilter.java:87-89` (sin sesión), `EnlaceSeguimientoServiceImpl.java:89-106` (las 4 validaciones), `GlobalExceptionHandler.java:52-54` (el 410) |
+
+Son **la misma funcionalidad vista desde los dos lados**: 7.1 es el pasajero que crea el enlace,
+7.3 es el familiar que lo abre. Exponlas juntas, en ese orden.
+
+### 10.2 Dónde se almacena: la tabla `seguimiento`
+
+Es la **única tabla que agregó el Release 2** para esta HU (`schema.sql:118-132`).
+
+| Columna | Línea | Para qué |
+|---|---|---|
+| `id_seguimiento` | 124 | clave primaria |
+| `id_venta` | 125 | FK a `venta`: **de quién es el viaje compartido** |
+| `id_viaje` | 126 | FK a `viaje`: qué bus se va a seguir |
+| `token` | 127 | `VARCHAR(64) NOT NULL **UNIQUE**` ← esto es lo que hace que el enlace sea **único** (HU 7.1) |
+| `fecha_creacion` | 128 | cuándo se generó |
+| `fecha_expiracion` | 129 | **la vigencia** (HU 7.1) |
+| `estado` | 130 | `CHECK (estado IN ('ACTIVO','REVOCADO'))` ← la parte de "revocado" de la HU 7.3 |
+| `idx_seguimiento_venta` | 132 | índice por venta, porque siempre se busca "el enlace activo de esta compra" |
+
+Frase para decir: **"el enlace no es un JWT ni se calcula: es una fila en la base de datos. Por eso se
+puede revocar, y por eso sabemos cuándo vence sin preguntarle nada al cliente."**
+
+### 10.3 El token: por qué es único y por qué no se puede adivinar
+
+`EnlaceSeguimientoServiceImpl.java:124-128`
+
+```java
+private static String nuevoToken() {
+    byte[] bytes = new byte[24];
+    ALEATORIO.nextBytes(bytes);                                  // SecureRandom, linea 38
+    return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+}
+```
+
+| Decisión | Línea | Por qué |
+|---|---|---|
+| `SecureRandom` y no `Random` | 38 | `Random` es predecible a partir de su semilla; esto es un secreto de acceso |
+| 24 bytes | 125 | = **192 bits**, que en Base64 dan **32 caracteres**. No se adivina por fuerza bruta |
+| `getUrlEncoder()` | 127 | usa `-` y `_` en vez de `+` y `/`, así el token **viaja en una URL sin escaparse** |
+| `withoutPadding()` | 127 | quita los `=` finales, que ensucian la URL |
+| `UNIQUE` en la columna | `schema.sql:127` | la unicidad no se confía solo al azar: la garantiza la base de datos |
+
+La URL final se arma en `:130-132`: `urlFrontend + "/seguimiento/" + token`, donde `urlFrontend` viene
+de la propiedad `app.frontend-url` (`:49`), que en el VPS es el dominio real. Por eso el enlace que te
+genera la app desplegada apunta al VPS y no a `localhost`.
+
+### 10.4 La vigencia (la parte fina de la HU 7.1)
+
+| Método | Línea | Qué hace |
+|---|---|---|
+| `finDelViaje()` | 120-122 | el enlace vence **al final del día en que llega el viaje**: `llegadaEstimada().toLocalDate().atTime(23,59,59)` |
+| `vigencia()` | 115-118 | devuelve **el mayor** entre el vencimiento guardado y el fin recalculado |
+
+El comentario de la línea 114 explica el porqué, y es un detalle que te hace quedar muy bien:
+
+> **"Si después se registra un retraso, el enlace sigue válido hasta el nuevo fin del viaje."**
+
+Es decir: el administrador registra un retraso (HU 5.2), la llegada estimada se corre, y el enlace que
+tu familiar ya tiene en WhatsApp **se extiende solo**, sin tener que generar otro. Eso pasa porque la
+vigencia no se lee tal cual de la base: se recalcula contra el viaje en cada consulta.
+
+### 10.5 HU 7.1 — el recorrido completo "generar enlace"
+
+| # | Dónde | Qué pasa |
+|---|---|---|
+| 1 | `pages/CompartirViaje.jsx:125` | el botón solo aparece si `activo` (línea **46**: el pasaje está PROXIMO o EN_CURSO); si no, muestra "Solo se puede compartir un viaje que aún no termina" |
+| 2 | `pages/CompartirViaje.jsx:21-31` | `generar()` pone el estado `generando` y llama al servicio |
+| 3 | `api/ventaService.js:6` | `POST /api/ventas/{id}/enlace-seguimiento` (con el token de sesión, vía el interceptor) |
+| 4 | `controller/VentaController.java:58-61` | toma el `idUsuario` **del token**, no del cuerpo (línea **63-65**) |
+| 5 | `EnlaceSeguimientoServiceImpl.java:73-75` | busca la venta **filtrando por el dueño**: si es de otro usuario → 404 |
+| 6 | `:76-78` | si la venta está ANULADA → "La compra fue anulada" (400) |
+| 7 | `:79-82` | si el viaje ya terminó → **"solo se puede compartir un viaje activo"** ← el criterio de la HU 7.1 |
+| 8 | `:56-61` `obtenerOCrear` | **si ya hay un enlace ACTIVO para esa venta lo reutiliza**; solo si no hay, crea uno nuevo |
+| 9 | `EnlaceSeguimientoDaoImpl.java:25-43` | `INSERT` con `RETURN_GENERATED_KEYS` para recuperar el id recién creado |
+| 10 | `:83-85` | genera el **QR del enlace** con ZXing (`GeneradorQrZxing.java:21`) |
+| 11 | `dto/EnlaceSeguimientoDTO.java:5` | vuelve `{ idVenta, url, expiraEn, qrBase64 }` |
+| 12 | `pages/CompartirViaje.jsx:84, 92, 136` | pinta el campo con la URL, la fecha de vencimiento y el QR |
+
+**El punto 8 es el que te conviene destacar:** si el usuario entra dos veces a "Compartir", **no se
+crean dos enlaces**. Dilo así: *"el método se llama `obtenerOCrear`, no `crear`: es idempotente mientras
+el enlace siga activo. Si no, cada clic dejaría basura en la tabla y habría N enlaces vivos del mismo viaje."*
+
+### 10.6 HU 7.3 — el recorrido completo "el familiar abre el enlace"
+
+| # | Dónde | Qué pasa |
+|---|---|---|
+| 1 | `App.jsx:30` | la ruta `/seguimiento/:token` está **fuera** de `<RutaPrivada>`: no pide sesión en el cliente |
+| 2 | `pages/SeguimientoPublico.jsx:14-23` | `cargar()` lee el token de la URL (`useParams`) y pide los datos |
+| 3 | `api/seguimientoService.js:7` | `GET /api/publico/seguimiento?token=...` — **sin cabecera de sesión** |
+| 4 | `security/JwtAuthFilter.java:87-89` | `esPublica()`: todo lo que empieza con `/api/publico/` **pasa sin token**. Esta es la línea que materializa el "sin sesión" de la HU |
+| 5 | `controller/SeguimientoController.java:28-31` | recibe el token como `@RequestParam` |
+| 6 | `EnlaceSeguimientoServiceImpl.java:89-101` | las **4 validaciones** del cuadro de 10.7 |
+| 7 | `:102-105` | arma la respuesta: nombre del pasajero, código, asientos, vencimiento **y la ubicación completa** (reusa `SeguimientoService.obtenerUbicacion`) |
+| 8 | `components/VistaSeguimiento.jsx:17-36` | el familiar ve el mismo mapa y panel que el pasajero, refrescando **cada 3 s** |
+| 9 | `pages/SeguimientoPublico.jsx:49-56` | encabezado "Viaje de Ana Torres", código del pasaje y "El enlace vence el ..." |
+
+**Lo que más vale la pena señalar aquí:** `VistaSeguimiento` es **el mismo componente** que usa la
+pantalla privada (`Seguimiento.jsx:66`). La diferencia es solo **qué función de carga recibe por prop**:
+por id de viaje en la privada, por token en la pública. Un componente, dos historias de usuario.
+
+### 10.7 Las 4 puertas que devuelven 410 (HU 7.3)
+
+Todas en `verCompartido`, `EnlaceSeguimientoServiceImpl.java:89-101`:
+
+| # | Línea | Caso |
+|---|---|---|
+| 1 | 90-92 | el token **no existe** en la tabla, o su `estado` **no es ACTIVO** (`EnlaceSeguimiento.java:11-13`) |
+| 2 | 93-95 | la **venta** ya no existe o **no está PAGADA** |
+| 3 | 96-97 | el **viaje** ya no existe |
+| 4 | 99-101 | **ya venció**: `ZonaApp.ahora()` es posterior a la vigencia recalculada |
+
+Las cuatro lanzan **la misma** `EnlaceInvalidoException` con **el mismo mensaje** (constante de la
+línea 37). Eso es deliberado y lo puedes defender así:
+
+> "No distinguimos 'no existe' de 'venció' de 'fue revocado' hacia afuera. Si respondiéramos distinto,
+> cualquiera podría usar el endpoint para averiguar qué tokens existen. El detalle queda en el servidor."
+
+Y la cadena del 410 hasta la pantalla:
+
+`EnlaceInvalidoException.java:4` → `GlobalExceptionHandler.java:52-54` (`HttpStatus.GONE`) →
+`authService.js:56-65` (la función `llamar` adjunta `e.status`) → `SeguimientoPublico.jsx:20`
+(`if (e.status === 410) setInvalido(...)`) → `:38-43` la pantalla "Enlace inválido".
+
+Por qué **410 Gone** y no 404: *"410 significa 'esto existió y ya no está disponible', que es
+exactamente un enlace vencido. 404 sería 'nunca existió'."*
+
+### 10.8 Pruebas que ya verifican estas dos HU
+
+`backend/src/test/java/.../service/impl/EnlaceSeguimientoServiceImplTest.java` — **8 pruebas**:
+
+| Prueba | Línea | HU |
+|---|---|---|
+| `reutilizaElEnlaceActivoDeLaCompra` | 83 | 7.1 (idempotencia: `verify(enlaceDao, never()).registrar(...)`) |
+| `creaUnTokenAleatorioQueVenceAlFinalDelDiaDeLlegada` | 95 | 7.1 (token ≥ 32 caracteres y vencimiento 23:59:59) |
+| `elFamiliarVeElViajeConElNombreDelPasajero` | 110 | 7.3 |
+| `rechazaUnTokenQueNoExiste` | 123 | 7.3 |
+| `rechazaElEnlaceCuandoElViajeYaTermino` | 130 | 7.3 (el caso del vencimiento) |
+| `noComparteLaCompraDeOtroUsuario` | 140 | 7.1 (seguridad) |
+| `noComparteUnViajeQueYaTermino` | 147 | 7.1 (viaje activo) |
+| `alGenerarElEnlaceTambienDevuelveSuQr` | 154 | 7.1 |
+
+**Sé honesto con la autoría:** la Tabla 98 del informe solo te asigna a ti las pruebas de
+`buscarViajes`. Estas 8 están en el repositorio pero el capítulo 10 no las atribuye a nadie.
+Preséntalas como *"la HU está cubierta por pruebas automatizadas del equipo"*, no como tuyas.
+Corren con `mvn test -Dtest=EnlaceSeguimientoServiceImplTest`.
+
+### 10.9 Preguntas probables
+
+| Pregunta | Respuesta |
+|---|---|
+| "¿Por qué un token en la base y no un JWT firmado?" | "Porque un JWT no se puede revocar ni consultar: una vez emitido vale hasta que vence. Al guardarlo como fila podemos revocarlo, saber cuántos enlaces hay por compra y extender su vigencia si el viaje se retrasa." |
+| "¿Qué pasa si alguien comparte el enlace en público?" | "Ve el recorrido del bus, el nombre del pasajero, el código del pasaje y los asientos — nada más: ni el correo, ni la tarjeta, ni el historial. El DTO expuesto es `SeguimientoCompartidoDTO` y tiene exactamente 5 campos. Y deja de servir al terminar el viaje." |
+| "¿Se puede revocar de verdad?" | Honestidad: "el modelo lo soporta: la columna tiene `CHECK (ACTIVO, REVOCADO)` y el servicio filtra por `estaActivo()` (`:91`), así que un `UPDATE seguimiento SET estado='REVOCADO'` hace que el enlace responda 410 al instante. **Lo que no implementamos es el botón** para que el usuario lo revoque desde la pantalla; es la mejora natural de esta HU." |
+| "¿Por qué el enlace vence a las 23:59 y no al llegar el bus?" | "Para que el familiar pueda abrirlo un rato después de la llegada y ver que el viaje terminó, en vez de encontrarse un error justo cuando el bus está estacionando." |
+| "¿El familiar consume recursos del servidor cada 3 segundos?" | "Sí, es *polling*; lo elegimos por simplicidad frente a WebSockets. Cada consulta es una lectura del viaje y un cálculo en memoria del simulador, sin escrituras." |
+| "¿Dónde se valida que el viaje esté activo, en el front o en el back?" | "En los dos, y a propósito: la pantalla oculta el botón (`CompartirViaje.jsx:46`) para no ofrecer algo que va a fallar, pero la regla que manda es la del servicio (`:80-82`). Si llamas al endpoint con curl sobre un viaje terminado, igual te rechaza." |
+
+### 10.10 Demo de 90 segundos para estas dos HU
+
+1. Entra como `cliente@bustracka.pe`, ve a **Mis compras** → una compra **En curso** → **Compartir viaje**.
+2. Pulsa **Generar enlace**: aparecen la URL, el **QR** y "Válido durante el viaje; vence el ...". (HU 7.1)
+3. Pulsa **Generar** otra vez y muestra que **la URL es la misma**: ahí demuestras `obtenerOCrear`.
+4. Copia el enlace y ábrelo en una **ventana de incógnito**: se ve el mapa sin iniciar sesión. (HU 7.3)
+5. Cierre: cambia un carácter del token en la URL y recarga → **"Enlace inválido"**, que es el 410.
